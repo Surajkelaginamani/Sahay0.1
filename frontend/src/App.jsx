@@ -27,22 +27,26 @@ function App() {
             {/* Authentication Routes */}
             <Route path="/auth/patient" element={<PatientAuth />} />
             <Route path="/auth/hospital/register" element={<HospitalRegister />} />
-            {/* Unified Staff & Admin Login (Prompt 2.4) */}
             <Route path="/auth/hospital/login" element={<HospitalLogin />} />
             <Route path="/auth/govt" element={<GovtLogin />} />
 
-            {/* Dashboards — role-specific routes (Prompt 2.4) */}
+            {/* Dashboards */}
             <Route path="/dashboard/patient" element={<PatientDashboard />} />
             <Route path="/dashboard/govt" element={<GovtDashboard />} />
 
-            {/* Hospital Admin — /dashboard/admin (new canonical) + /dashboard/hospital (legacy alias) */}
+            {/* Hospital Admin */}
             <Route path="/dashboard/admin" element={<HospitalAdminDashboard />} />
             <Route path="/dashboard/hospital" element={<HospitalAdminDashboard />} />
 
-            {/* Staff dashboards */}
+            {/* Clinical & Staff Dashboards */}
             <Route path="/dashboard/doctor" element={<DoctorDashboard />} />
             <Route path="/dashboard/lab" element={<LabDashboard />} />
+            <Route path="/dashboard/lab-pharmacy" element={<LabDashboard />} />
+
+            {/* ASHA / Frontline Community Health Worker */}
             <Route path="/dashboard/asha" element={<AshaDashboard />} />
+            <Route path="/dashboard/ashaworker" element={<AshaDashboard />} />
+            <Route path="/dashboards/ashaworker" element={<AshaDashboard />} />
 
             {/* Fallback route */}
             <Route path="*" element={<Navigate to="/" replace />} />
