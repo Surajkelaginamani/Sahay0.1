@@ -10,6 +10,9 @@ import GovtLogin from './pages/auth/GovtLogin';
 import PatientDashboard from './pages/dashboards/PatientDashboard';
 import HospitalAdminDashboard from './pages/dashboards/HospitalAdminDashboard';
 import GovtDashboard from './pages/dashboards/GovtDashboard';
+import DoctorDashboard from './pages/dashboards/DoctorDashboard';
+import LabDashboard from './pages/dashboards/LabDashboard';
+import AshaDashboard from './pages/dashboards/AshaDashboard';
 
 function App() {
   return (
@@ -24,13 +27,22 @@ function App() {
             {/* Authentication Routes */}
             <Route path="/auth/patient" element={<PatientAuth />} />
             <Route path="/auth/hospital/register" element={<HospitalRegister />} />
+            {/* Unified Staff & Admin Login (Prompt 2.4) */}
             <Route path="/auth/hospital/login" element={<HospitalLogin />} />
             <Route path="/auth/govt" element={<GovtLogin />} />
 
-            {/* Dashboards */}
+            {/* Dashboards — role-specific routes (Prompt 2.4) */}
             <Route path="/dashboard/patient" element={<PatientDashboard />} />
-            <Route path="/dashboard/hospital" element={<HospitalAdminDashboard />} />
             <Route path="/dashboard/govt" element={<GovtDashboard />} />
+
+            {/* Hospital Admin — /dashboard/admin (new canonical) + /dashboard/hospital (legacy alias) */}
+            <Route path="/dashboard/admin" element={<HospitalAdminDashboard />} />
+            <Route path="/dashboard/hospital" element={<HospitalAdminDashboard />} />
+
+            {/* Staff dashboards */}
+            <Route path="/dashboard/doctor" element={<DoctorDashboard />} />
+            <Route path="/dashboard/lab" element={<LabDashboard />} />
+            <Route path="/dashboard/asha" element={<AshaDashboard />} />
 
             {/* Fallback route */}
             <Route path="*" element={<Navigate to="/" replace />} />

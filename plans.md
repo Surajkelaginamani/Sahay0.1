@@ -88,3 +88,42 @@ Build a "Create Staff Account" form in the dashboard containing fields for Name,
 Connect the form to the backend endpoint using Axios.
 
 Build a table below the form that fetches and lists all currently registered staff members associated with this specific hospital.
+
+# Prompt 2.3: Backend Unified Staff Login
+Task: Upgrade the Hospital Admin login into a Unified Staff Login controller (POST /api/hospital/login or create POST /api/auth/staff-login).
+
+Requirements:
+
+Update the Mongoose query to find the user by email, regardless of their specific staff role.
+const user = await User.findOne({ email: req.body.email });
+
+Ensure bcrypt.compare() verifies the password.
+
+Verify the user has a valid hospitalId. Then, query the Hospital collection for that ID to ensure its verificationStatus is 'approved'. If it is 'pending' or 'rejected', return a 403 error.
+
+Generate a JWT that includes the user's id, role, and hospitalId.
+
+Return a 200 JSON response containing the token and the user's role.
+
+# Prompt 2.4: Frontend Smart Login & Role Redirection
+Task: Refactor the frontend Hospital Admin Login page into a Unified Staff Login page and implement role-based redirection.
+
+Requirements:
+
+Rename the UI elements on /auth/hospital/login from "Hospital Admin Login" to "Healthcare Staff & Admin Portal".
+
+In the handleSubmit Axios function, upon a successful 200 response, save the token to localStorage.
+
+Implement a switch statement on the returned user.role to handle navigation via react-router-dom:
+
+case 'HospitalAdmin': navigate('/dashboard/admin');
+
+case 'Doctor': navigate('/dashboard/doctor');
+
+case 'LabHead': navigate('/dashboard/lab');
+
+case 'ASHA': navigate('/dashboard/asha');
+
+default: navigate('/'); // Fallback
+
+Create empty placeholder components in your pages/dashboards/ folder for DoctorDashboard.jsx, LabDashboard.jsx, and AshaDashboard.jsx, and register their routes in App.jsx.
