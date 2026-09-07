@@ -11,8 +11,10 @@ import PatientDashboard from './pages/dashboards/PatientDashboard';
 import HospitalAdminDashboard from './pages/dashboards/HospitalAdminDashboard';
 import GovtDashboard from './pages/dashboards/GovtDashboard';
 import DoctorDashboard from './pages/dashboards/DoctorDashboard';
+import DrDashboardLayout from './pages/dashboards/DrDashboard/DrDashboardLayout';
 import LabDashboard from './pages/dashboards/LabDashboard';
 import AshaDashboard from './pages/dashboards/AshaDashboard';
+import ReceptionistDashboard from './pages/dashboards/ReceptionistDashboard';
 
 function App() {
   return (
@@ -40,13 +42,19 @@ function App() {
 
             {/* Clinical & Staff Dashboards */}
             <Route path="/dashboard/doctor" element={<DoctorDashboard />} />
+            {/* Full clinical workspace — protected, role-guarded inside the layout */}
+            <Route path="/doctor" element={<DrDashboardLayout />} />
             <Route path="/dashboard/lab" element={<LabDashboard />} />
             <Route path="/dashboard/lab-pharmacy" element={<LabDashboard />} />
 
             {/* ASHA / Frontline Community Health Worker */}
             <Route path="/dashboard/asha" element={<AshaDashboard />} />
+ Asha-Worker
             <Route path="/dashboard/ashaworker" element={<AshaDashboard />} />
             <Route path="/dashboards/ashaworker" element={<AshaDashboard />} />
+=======
+            <Route path="/dashboard/receptionist" element={<ReceptionistDashboard />} />
+ Asha-Worker
 
             {/* Fallback route */}
             <Route path="*" element={<Navigate to="/" replace />} />

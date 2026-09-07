@@ -5,10 +5,11 @@ import { staffAuthAPI } from '../../services/api';
 // Role → route map
 const ROLE_ROUTES = {
   HospitalAdmin: '/dashboard/admin',
-  Doctor: '/dashboard/doctor',
+  Doctor: '/doctor',
   LabHead: '/dashboard/lab',
   ASHA: '/dashboard/asha',
   FacilityAdmin: '/dashboard/admin', // Facility admins share the admin dashboard for now
+  Receptionist: '/dashboard/receptionist',
 };
 
 // Subtle role badge displayed after failed login with role info
@@ -18,6 +19,7 @@ const ROLE_LABELS = {
   LabHead: 'Lab Head / Diagnostics',
   ASHA: 'ASHA / ANM Worker',
   FacilityAdmin: 'Facility Administrator',
+  Receptionist: 'Receptionist',
 };
 
 export default function HospitalLogin() {
@@ -70,7 +72,7 @@ export default function HospitalLogin() {
           navigate('/dashboard/admin');
           break;
         case 'Doctor':
-          navigate('/dashboard/doctor');
+          navigate('/doctor');
           break;
         case 'LabHead':
           navigate('/dashboard/lab');
@@ -80,6 +82,9 @@ export default function HospitalLogin() {
           break;
         case 'FacilityAdmin':
           navigate('/dashboard/admin');
+          break;
+        case 'Receptionist':
+          navigate('/dashboard/receptionist');
           break;
         default:
           navigate('/');
@@ -132,7 +137,7 @@ export default function HospitalLogin() {
 
             {/* Role chips — visual hint */}
             <div className="flex flex-wrap justify-center gap-1.5 pt-1">
-              {['Hospital Admin', 'Doctor', 'ASHA / ANM', 'Lab Head'].map((r) => (
+              {['Hospital Admin', 'Doctor', 'ASHA / ANM', 'Lab Head', 'Receptionist'].map((r) => (
                 <span key={r} className="px-2 py-0.5 rounded-full bg-sky-50 border border-sky-200 text-sky-700 text-[10px] font-medium">
                   {r}
                 </span>

@@ -1,6 +1,6 @@
 import User from '../models/User.js';
 
-const STAFF_ROLES = ['ASHA', 'Doctor', 'LabHead', 'FacilityAdmin'];
+const STAFF_ROLES = ['ASHA', 'Doctor', 'LabHead', 'FacilityAdmin', 'Receptionist'];
 
 // @desc    Create a staff member for the admin's hospital
 // @route   POST /api/hospital/create-staff

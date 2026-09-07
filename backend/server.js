@@ -7,6 +7,7 @@ import hospitalAuthRoutes from './src/routes/hospitalAuthRoutes.js';
 import govtRoutes from './src/routes/govtRoutes.js';
 import hospitalAdminRoutes from './src/routes/hospitalAdminRoutes.js';
 import staffAuthRoutes from './src/routes/staffAuthRoutes.js';
+import receptionistRoutes from './src/modules/receptionist/receptionistRoutes.js';
 
 dotenv.config();
 
@@ -26,6 +27,7 @@ app.use('/api/hospital-auth', hospitalAuthRoutes);
 app.use('/api/govt', govtRoutes);
 app.use('/api/hospital', hospitalAdminRoutes);
 app.use('/api/auth', staffAuthRoutes);
+app.use('/api/receptionist', receptionistRoutes);
 
 // Basic health check route
 app.get('/api/health', (req, res) => {

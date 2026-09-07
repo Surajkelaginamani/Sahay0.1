@@ -47,9 +47,21 @@ export const hospitalAdminAPI = {
   deleteStaff: (id) => api.delete(`/hospital/staff/${id}`),
 };
 
+ Asha-Worker
 // Staff Auth API (Unified login for Doctor, ASHA, HospitalAdmin, LabHead, FacilityAdmin)
 export const staffAuthAPI = {
   login: (data) => api.post('/auth/staff-login', data),
+=======
+// Receptionist API (Prompt 4.3 — patient & appointment management)
+export const receptionistAPI = {
+  registerPatient:   (data) => api.post('/receptionist/patient', data),
+  searchPatients:    (q)    => api.get('/receptionist/patient/search', { params: { q } }),
+  createAppointment: (data) => api.post('/receptionist/appointment', data),
+  checkIn:           (id)   => api.patch(`/receptionist/appointment/${id}/checkin`),
+  getTodayQueue:     (status) =>
+    api.get('/receptionist/queue/today', status ? { params: { status } } : {}),
+ Hospital-admin-dashboard
 };
 
 export default api;
+
