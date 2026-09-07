@@ -43,6 +43,8 @@ export const govtAPI = {
 export const hospitalAdminAPI = {
   createStaff: (data) => api.post('/hospital/create-staff', data),
   getStaff: () => api.get('/hospital/staff'),
+  resetPassword: (id, password) => api.put(`/hospital/staff/${id}/password`, { password }),
+  deleteStaff: (id) => api.delete(`/hospital/staff/${id}`),
 };
 
 // Staff Auth API (Unified login for Doctor, ASHA, HospitalAdmin, LabHead, FacilityAdmin)
