@@ -24,7 +24,8 @@ export const staffLogin = async (req, res) => {
         .json({ message: 'Please provide both email and password.' });
     }
 
-    const cleanEmail = email.trim().toLowerCase();
+    const cleanEmail = email ? email.trim().toLowerCase() : '';
+    const cleanPassword = typeof password === 'string' ? password.trim() : password;
     console.log(`[Staff Login] Attempt for email: "${cleanEmail}"`);
 
     // --- Step 1: Find user by email (any role) ---
@@ -38,7 +39,11 @@ export const staffLogin = async (req, res) => {
     }
 
     // --- Step 2: Verify password ---
-    const isMatch = await user.matchPassword(password);
+    let isMatch = await user.matchPassword(cleanPassword);
+    if (!isMatch && cleanPassword !== password) {
+      isMatch = await user.matchPassword(password);
+    }
+
     if (!isMatch) {
       console.log(`[Staff Login] Password mismatch for user: "${user.email}"`);
       return res.status(401).json({
