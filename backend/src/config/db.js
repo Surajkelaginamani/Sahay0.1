@@ -1,4 +1,12 @@
 import mongoose from 'mongoose';
+import dns from 'node:dns';
+
+// Configure DNS to resolve MongoDB Atlas SRV records when local ISP/router DNS blocks them
+try {
+  dns.setServers(['8.8.8.8', '8.8.4.4', '1.1.1.1']);
+} catch (err) {
+  console.warn('[DB] Could not override DNS servers:', err.message);
+}
 
 const connectDB = async () => {
   try {
