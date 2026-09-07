@@ -1,5 +1,7 @@
 import Patient from '../../models/Patient.js';
 import Appointment from '../../models/Appointment.js';
+import User from '../../models/User.js';
+import bcrypt from 'bcrypt';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -19,20 +21,33 @@ function getTodayRange() {
 // @route   POST /api/receptionist/patient
 // @access  Private (Receptionist)
 export const registerPatient = async (req, res) => {
+  let createdUser = null; // track so we can roll back on Patient failure
+
   try {
     const {
       firstName, lastName, dob, gender,
       contactPhone, address, abhaId,
+      email, password,
     } = req.body;
 
-    // Required field validation
+    // ── Required field validation ──────────────────────────────────────────────
     if (!firstName || !lastName || !dob || !gender) {
       return res.status(400).json({
         message: 'firstName, lastName, dob, and gender are required.',
       });
     }
 
-    // Duplicate phone check (optional but practical)
+    if (!email || !password) {
+      return res.status(400).json({
+        message: 'email and password are required to create a patient login account.',
+      });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters.' });
+    }
+
+    // ── Duplicate phone check ──────────────────────────────────────────────────
     if (contactPhone) {
       const phoneExists = await Patient.findOne({ contactPhone: contactPhone.trim() });
       if (phoneExists) {
@@ -47,40 +62,71 @@ export const registerPatient = async (req, res) => {
       }
     }
 
+    // ── Duplicate email check ──────────────────────────────────────────────────
+    const emailExists = await User.findOne({ email: email.trim().toLowerCase() });
+    if (emailExists) {
+      return res.status(400).json({
+        message: `An account with email ${email.trim()} already exists.`,
+      });
+    }
+
+    // ── Step 1: Create User login account ─────────────────────────────────────
+    // User.pre('save') will hash the password automatically
+    const fullName = `${firstName.trim()} ${lastName.trim()}`;
+    createdUser = await User.create({
+      name:     fullName,
+      email:    email.trim().toLowerCase(),
+      password, // hashed by pre-save hook in User.js
+      role:     'Patient',
+      hospitalId: null,
+    });
+
+    // ── Step 2: Create Patient medical profile linked to User ─────────────────
     const patient = await Patient.create({
-      firstName: firstName.trim(),
-      lastName: lastName.trim(),
-      dob: new Date(dob),
+      firstName:            firstName.trim(),
+      lastName:             lastName.trim(),
+      dob:                  new Date(dob),
       gender,
-      contactPhone: contactPhone?.trim() || undefined,
-      address: address || {},
-      abhaId: abhaId?.trim() || undefined,
+      contactPhone:         contactPhone?.trim()  || undefined,
+      address:              address               || {},
+      abhaId:               abhaId?.trim()        || undefined,
       registeredAtFacility: req.user.hospitalId,
+      userId:               createdUser._id,
     });
 
     res.status(201).json({
-      message: 'Patient registered successfully.',
+      message: 'Patient registered successfully with a login account.',
       patient: {
-        _id: patient._id,
-        fullName: `${patient.firstName} ${patient.lastName}`,
-        dob: patient.dob,
-        gender: patient.gender,
-        contactPhone: patient.contactPhone,
-        abhaId: patient.abhaId,
+        _id:                  patient._id,
+        fullName:             `${patient.firstName} ${patient.lastName}`,
+        dob:                  patient.dob,
+        gender:               patient.gender,
+        contactPhone:         patient.contactPhone,
+        abhaId:               patient.abhaId,
         registeredAtFacility: patient.registeredAtFacility,
-        createdAt: patient.createdAt,
+        userId:               createdUser._id,
+        email:                createdUser.email,
+        createdAt:            patient.createdAt,
       },
     });
   } catch (error) {
+    // Roll back: if Patient creation fails after User was created, delete the orphan User
+    if (createdUser) {
+      await User.findByIdAndDelete(createdUser._id).catch(() => null);
+    }
+
     // Handle Mongoose duplicate key (abhaId unique index)
     if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern || {})[0] || 'field';
       return res.status(400).json({
-        message: 'A patient with this ABHA ID already exists.',
+        message: `A patient with this ${field} already exists.`,
       });
     }
+
     res.status(500).json({ message: error.message });
   }
 };
+
 
 // ─── searchPatients ───────────────────────────────────────────────────────────
 // @route   GET /api/receptionist/patient/search?q=<name|phone>

@@ -60,6 +60,13 @@ const patientSchema = new mongoose.Schema(
       default: false,
     },
 
+    // ── Linked Login Account ──────────────────────────────────────────────────
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+
     // ── Facility Registration ─────────────────────────────────────────────────
     registeredAtFacility: {
       type: mongoose.Schema.Types.ObjectId,
