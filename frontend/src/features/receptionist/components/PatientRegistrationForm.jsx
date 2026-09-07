@@ -10,6 +10,7 @@ const EMPTY_FORM = {
   bloodGroup: '', contactPhone: '',
   address: { village: '', district: '', state: '', pincode: '' },
   abhaId: '',
+  email: '', password: '',
 };
 
 // ─── Tiny field components ─────────────────────────────────────────────────────
@@ -53,6 +54,7 @@ export default function PatientRegistrationForm({ onSuccess }) {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [searchPhone, setSearchPhone] = useState('');
   const [searchResults, setSearchResults] = useState(null);
   const [searching, setSearching] = useState(false);
@@ -69,6 +71,10 @@ export default function PatientRegistrationForm({ onSuccess }) {
     if (!form.lastName.trim())  e.lastName  = 'Last name is required';
     if (!form.dob)              e.dob       = 'Date of birth is required';
     if (!form.gender)           e.gender    = 'Gender is required';
+    if (!form.email.trim())     e.email     = 'Email is required';
+    else if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) e.email = 'Enter a valid email address';
+    if (!form.password)         e.password  = 'Password is required';
+    else if (form.password.length < 6) e.password = 'Minimum 6 characters';
     if (form.contactPhone && !/^\d{10}$/.test(form.contactPhone.trim()))
       e.contactPhone = 'Must be a 10-digit number';
     if (form.abhaId && !/^\d{2}-\d{4}-\d{4}-\d{4}$/.test(form.abhaId.trim()))
@@ -104,6 +110,8 @@ export default function PatientRegistrationForm({ onSuccess }) {
         lastName:     form.lastName.trim(),
         dob:          form.dob,
         gender:       form.gender,
+        email:        form.email.trim().toLowerCase(),
+        password:     form.password,
         contactPhone: form.contactPhone.trim() || undefined,
         bloodGroup:   form.bloodGroup          || undefined,
         address:      form.address,
@@ -264,6 +272,64 @@ export default function PatientRegistrationForm({ onSuccess }) {
             onChange={(e) => setField('abhaId', e.target.value)}
             error={errors.abhaId}
           />
+        </div>
+
+        {/* ── Login Credentials ───────────────────────────────────────── */}
+        <div className="flex items-center gap-2 pt-1">
+          <div className="flex-1 h-px bg-slate-100" />
+          <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Patient Login Credentials</p>
+          <div className="flex-1 h-px bg-slate-100" />
+        </div>
+        <p className="text-[11px] text-slate-400 -mt-3">
+          These credentials allow the patient to log in to the SAHAY patient portal later.
+        </p>
+
+        <div>
+          <Label required>Email Address</Label>
+          <Input
+            type="email" placeholder="patient@example.com"
+            value={form.email}
+            onChange={(e) => setField('email', e.target.value)}
+            error={errors.email}
+          />
+        </div>
+
+        <div>
+          <Label required>Password
+            <span className="ml-1.5 text-[10px] font-normal text-slate-400 normal-case">(min. 6 characters)</span>
+          </Label>
+          <div className="relative">
+            <input
+              type={showPassword ? 'text' : 'password'}
+              placeholder="Create a password"
+              value={form.password}
+              onChange={(e) => setField('password', e.target.value)}
+              className={`w-full px-3.5 py-2.5 pr-10 rounded-xl border text-sm focus:outline-none focus:ring-2
+                focus:ring-rose-400 focus:border-rose-400 transition-all bg-slate-50 focus:bg-white
+                ${errors.password ? 'border-rose-400 bg-rose-50/30' : 'border-slate-200'}`}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              tabIndex={-1}
+            >
+              {showPassword ? (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                    d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                </svg>
+              ) : (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+              )}
+            </button>
+          </div>
+          {errors.password && <p className="text-[11px] text-rose-600 mt-1">{errors.password}</p>}
         </div>
 
         {/* Address */}

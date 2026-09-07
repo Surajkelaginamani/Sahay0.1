@@ -1,19 +1,22 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PatientRegistrationForm from '../../features/receptionist/components/PatientRegistrationForm';
-import QueueManager from '../../features/receptionist/components/QueueManager';
+import PatientSearch           from '../../features/receptionist/components/PatientSearch';
+import TodayQueue              from '../../features/receptionist/components/TodayQueue';
 
 // ─── Toast ─────────────────────────────────────────────────────────────────────
 function Toast({ toast }) {
   if (!toast) return null;
-  const isSuccess = toast.type === 'success';
+  const ok = toast.type === 'success';
   return (
     <div className={`fixed top-6 right-6 z-50 flex items-start gap-3 px-5 py-4 rounded-2xl shadow-xl border
-      text-sm font-medium max-w-sm animate-fade-in
-      ${isSuccess ? 'bg-white border-emerald-200' : 'bg-white border-rose-200'}`}>
+      text-sm font-medium max-w-sm
+      ${ok ? 'bg-white border-emerald-200' : 'bg-white border-rose-200'}`}
+    >
       <div className={`shrink-0 w-8 h-8 rounded-xl flex items-center justify-center
-        ${isSuccess ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
-        {isSuccess ? (
+        ${ok ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}
+      >
+        {ok ? (
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
           </svg>
@@ -31,12 +34,13 @@ function Toast({ toast }) {
   );
 }
 
-// ─── Tab config ────────────────────────────────────────────────────────────────
+// ─── Tab definitions ──────────────────────────────────────────────────────────
 const TABS = [
   {
     id: 'queue',
-    label: 'Today\'s Queue',
+    label: "Today's Queue",
     shortLabel: 'Queue',
+    color: 'amber',
     icon: (
       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
@@ -46,8 +50,9 @@ const TABS = [
   },
   {
     id: 'register',
-    label: 'Register Patient',
+    label: 'Register New Patient',
     shortLabel: 'Register',
+    color: 'rose',
     icon: (
       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
@@ -55,16 +60,35 @@ const TABS = [
       </svg>
     ),
   },
+  {
+    id: 'search',
+    label: 'Search & Add Existing',
+    shortLabel: 'Search',
+    color: 'violet',
+    icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+      </svg>
+    ),
+  },
 ];
+
+const TAB_ACTIVE_CLASSES = {
+  amber:  'bg-amber-500 text-white shadow-sm shadow-amber-200',
+  rose:   'bg-rose-500 text-white shadow-sm shadow-rose-200',
+  violet: 'bg-violet-600 text-white shadow-sm shadow-violet-200',
+};
 
 // ─── Main Dashboard ────────────────────────────────────────────────────────────
 export default function ReceptionistDashboard() {
-  const navigate  = useNavigate();
+  const navigate = useNavigate();
+
   const [user, setUser]           = useState(null);
   const [activeTab, setActiveTab] = useState('queue');
   const [toast, setToast]         = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
-  // Trigger re-fetch of QueueManager when a new patient is registered
+  // Increment to trigger TodayQueue re-fetch
   const [queueRefresh, setQueueRefresh] = useState(0);
 
   // ── Live clock ──────────────────────────────────────────────────────────
@@ -94,51 +118,47 @@ export default function ReceptionistDashboard() {
     navigate('/auth/hospital/login');
   };
 
-  // ── Callbacks from children ─────────────────────────────────────────────
+  // ── Child callbacks ─────────────────────────────────────────────────────
   const handlePatientRegistered = useCallback(({ type, patient }) => {
     if (type === 'registered') {
-      showToast(
-        'success',
-        'Patient Registered',
-        `${patient.fullName} has been registered and added to the facility.`
-      );
-      // Switch to queue tab and trigger refresh
+      showToast('success', 'Patient Registered',
+        `${patient.fullName} has been registered with a login account.`);
       setActiveTab('queue');
       setQueueRefresh((n) => n + 1);
     } else if (type === 'found') {
-      showToast(
-        'success',
-        'Patient Found',
-        `Using existing record for ${patient.fullName}.`
-      );
-      setActiveTab('queue');
+      showToast('success', 'Patient Found', `Using existing record for ${patient.fullName}.`);
+      setActiveTab('search');
     }
   }, [showToast]);
 
+  const handleQueueSuccess = useCallback(({ patient, queueNumber }) => {
+    showToast('success', 'Added to Queue',
+      `${patient.fullName} is now Queue #${queueNumber}.`);
+    setQueueRefresh((n) => n + 1);
+  }, [showToast]);
+
   const handleCheckInSuccess = useCallback(({ patientName, queueNumber }) => {
-    showToast(
-      'success',
-      'Patient Checked In',
-      `${patientName} is now Queue #${queueNumber}.`
-    );
+    showToast('success', 'Patient Checked In',
+      `${patientName} is now Queue #${queueNumber}.`);
   }, [showToast]);
 
   if (!user) return null;
 
   return (
-    <div className="min-h-[85vh] bg-gradient-to-br from-slate-50 via-rose-50/20 to-pink-50/25 px-4 sm:px-8 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-amber-50/20 to-rose-50/20 px-4 sm:px-8 py-8">
       <Toast toast={toast} />
 
-      <div className="max-w-7xl mx-auto space-y-6">
+      <div className="max-w-6xl mx-auto space-y-6">
 
-        {/* ── Header ────────────────────────────────────────────────────── */}
+        {/* ── Header ─────────────────────────────────────────────────────── */}
         <div className="bg-white rounded-3xl border border-slate-100 shadow-sm px-6 sm:px-8 py-6
-          flex flex-col md:flex-row md:items-center justify-between gap-5">
-          <div className="flex items-center gap-5">
-            {/* Icon */}
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-rose-500 via-pink-500 to-rose-600
-              flex items-center justify-center text-white shadow-lg shadow-rose-200/50 shrink-0">
-              <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          flex flex-col md:flex-row md:items-center justify-between gap-5"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-rose-500 via-pink-500 to-rose-600
+              flex items-center justify-center text-white shadow-lg shadow-rose-200/50 shrink-0"
+            >
+              <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8"
                   d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
               </svg>
@@ -149,7 +169,8 @@ export default function ReceptionistDashboard() {
                   Reception Desk
                 </h1>
                 <span className="text-[10px] font-bold uppercase tracking-widest px-2.5 py-1
-                  rounded-full bg-rose-100 text-rose-700 border border-rose-200 flex items-center gap-1.5">
+                  rounded-full bg-rose-100 text-rose-700 border border-rose-200 flex items-center gap-1.5"
+                >
                   <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
                   Live
                 </span>
@@ -160,21 +181,22 @@ export default function ReceptionistDashboard() {
                 <span>{user.hospitalName || 'Healthcare Facility'}</span>
                 <span className="text-slate-300">·</span>
                 <span className="font-mono text-slate-600 text-xs">
-                  {currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
+                  {currentTime.toLocaleTimeString('en-IN', {
+                    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true,
+                  })}
                 </span>
               </p>
             </div>
           </div>
 
-          {/* Right actions */}
+          {/* Header actions */}
           <div className="flex items-center gap-3 shrink-0">
-            {/* Quick register shortcut */}
             <button
+              id="header-register-btn"
               onClick={() => setActiveTab('register')}
-              className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all shadow-sm
-                ${activeTab === 'register'
-                  ? 'bg-rose-500 text-white shadow-rose-200'
-                  : 'bg-gradient-to-r from-rose-500 to-pink-600 text-white shadow-rose-200 hover:from-rose-600 hover:to-pink-700 active:scale-[0.98]'}`}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold
+                bg-gradient-to-r from-rose-500 to-pink-600 text-white shadow-sm shadow-rose-200
+                hover:from-rose-600 hover:to-pink-700 active:scale-[0.98] transition-all"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
@@ -182,12 +204,12 @@ export default function ReceptionistDashboard() {
               <span className="hidden sm:inline">Register Walk-in</span>
               <span className="sm:hidden">Register</span>
             </button>
-
-            {/* Logout */}
             <button
+              id="logout-btn"
               onClick={handleLogout}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200
-                text-xs font-semibold text-slate-600 hover:bg-rose-50 hover:border-rose-200 hover:text-rose-700 transition-colors"
+                text-xs font-semibold text-slate-600 hover:bg-rose-50 hover:border-rose-200
+                hover:text-rose-700 transition-colors"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
@@ -198,123 +220,136 @@ export default function ReceptionistDashboard() {
           </div>
         </div>
 
-        {/* ── Two-column layout (Queue | Register) ─────────────────────── */}
-        {/* On lg+ screens: always show both panels side-by-side */}
-        {/* On smaller screens: tabbed navigation */}
-
-        {/* Tab nav (visible < lg) */}
-        <div className="flex items-center gap-1 bg-white border border-slate-100 rounded-2xl p-1.5 shadow-sm lg:hidden">
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold transition-all
-                ${activeTab === tab.id
-                  ? 'bg-rose-500 text-white shadow-sm'
-                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'}`}
-            >
-              {tab.icon}
-              <span>{tab.shortLabel}</span>
-            </button>
-          ))}
+        {/* ── Tab navigation ──────────────────────────────────────────────── */}
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-1.5 flex gap-1">
+          {TABS.map((tab) => {
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                id={`tab-${tab.id}`}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl
+                  text-sm font-semibold transition-all
+                  ${isActive
+                    ? TAB_ACTIVE_CLASSES[tab.color]
+                    : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                  }`}
+              >
+                {tab.icon}
+                <span className="hidden sm:inline">{tab.label}</span>
+                <span className="sm:hidden">{tab.shortLabel}</span>
+              </button>
+            );
+          })}
         </div>
 
-        {/* Two-column grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
+        {/* ── Tab panels ──────────────────────────────────────────────────── */}
+        <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
 
-          {/* ── Left: Queue Manager (3/5 width on desktop) ────────────── */}
-          <div className={`lg:col-span-3 ${activeTab !== 'queue' ? 'hidden lg:block' : ''}`}>
-            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-              {/* Panel header */}
-              <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
-                  <svg className="w-4 h-4 text-amber-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                  </svg>
-                </div>
-                <div>
-                  <h2 className="text-sm font-bold text-slate-800">Today's Appointment Queue</h2>
-                  <p className="text-[11px] text-slate-400 mt-0.5">
-                    {currentTime.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}
-                  </p>
-                </div>
-              </div>
-              <div className="p-5">
-                <QueueManager
-                  onCheckInSuccess={handleCheckInSuccess}
-                  refreshTrigger={queueRefresh}
-                />
-              </div>
-            </div>
+          {/* Panel header */}
+          <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
+            {(() => {
+              const tab = TABS.find((t) => t.id === activeTab);
+              const colorMap = {
+                amber:  'bg-amber-100 text-amber-700',
+                rose:   'bg-rose-100 text-rose-700',
+                violet: 'bg-violet-100 text-violet-700',
+              };
+              return (
+                <>
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${colorMap[tab.color]}`}>
+                    {tab.icon}
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-bold text-slate-800">{tab.label}</h2>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      {activeTab === 'queue'    && "All of today's patient appointments"}
+                      {activeTab === 'register' && 'Register a new walk-in patient with login credentials'}
+                      {activeTab === 'search'   && 'Find an existing patient and add them to the queue'}
+                    </p>
+                  </div>
+                </>
+              );
+            })()}
           </div>
 
-          {/* ── Right: Patient Registration (2/5 width on desktop) ────── */}
-          <div className={`lg:col-span-2 ${activeTab !== 'register' ? 'hidden lg:block' : ''}`}>
-            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-              {/* Panel header */}
-              <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-rose-100 flex items-center justify-center shrink-0">
-                  <svg className="w-4 h-4 text-rose-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                </div>
-                <div>
-                  <h2 className="text-sm font-bold text-slate-800">Register / Find Patient</h2>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Search existing or register new walk-in</p>
-                </div>
-              </div>
-              <div className="p-5 max-h-[calc(100vh-220px)] overflow-y-auto">
-                <PatientRegistrationForm onSuccess={handlePatientRegistered} />
-              </div>
-            </div>
-          </div>
+          {/* Panel body */}
+          <div className="p-6">
 
+            {/* Tab 1: Today's Queue */}
+            {activeTab === 'queue' && (
+              <TodayQueue
+                refreshTrigger={queueRefresh}
+                onCheckInSuccess={handleCheckInSuccess}
+              />
+            )}
+
+            {/* Tab 2: Register New Patient */}
+            {activeTab === 'register' && (
+              <PatientRegistrationForm onSuccess={handlePatientRegistered} />
+            )}
+
+            {/* Tab 3: Search & Add Existing */}
+            {activeTab === 'search' && (
+              <PatientSearch onQueueSuccess={handleQueueSuccess} />
+            )}
+
+          </div>
         </div>
 
-        {/* ── Footer strip ──────────────────────────────────────────────── */}
+        {/* ── Footer info strip ────────────────────────────────────────────── */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-white rounded-2xl border border-slate-100 p-4 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-sky-100 flex items-center justify-center shrink-0">
-              <svg className="w-4.5 h-4.5 text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
+          {[
+            {
+              icon: (
+                <svg className="w-4 h-4 text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              ),
+              bg: 'bg-sky-100',
+              label: 'Today',
+              value: currentTime.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }),
+            },
+            {
+              icon: (
+                <svg className="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              ),
+              bg: 'bg-emerald-100',
+              label: 'OPD Hours',
+              value: '8:00 AM – 6:00 PM',
+              sub: '● Open',
+              subColor: 'text-emerald-600',
+            },
+            {
+              icon: (
+                <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+              ),
+              bg: 'bg-slate-100',
+              label: 'Security',
+              value: 'JWT Protected',
+              sub: 'Role: Receptionist',
+              subColor: 'text-slate-400',
+            },
+          ].map(({ icon, bg, label, value, sub, subColor }) => (
+            <div key={label} className="bg-white rounded-2xl border border-slate-100 p-4 flex items-center gap-3">
+              <div className={`w-9 h-9 rounded-xl ${bg} flex items-center justify-center shrink-0`}>
+                {icon}
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{label}</p>
+                <p className="text-xs font-semibold text-slate-700">{value}</p>
+                {sub && <p className={`text-[10px] font-semibold ${subColor}`}>{sub}</p>}
+              </div>
             </div>
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Today</p>
-              <p className="text-xs font-semibold text-slate-700">
-                {currentTime.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
-              </p>
-            </div>
-          </div>
-          <div className="bg-white rounded-2xl border border-slate-100 p-4 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
-              <svg className="w-4.5 h-4.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">OPD Hours</p>
-              <p className="text-xs font-semibold text-slate-700">8:00 AM – 6:00 PM</p>
-              <span className="text-[10px] font-semibold text-emerald-600">● Open</span>
-            </div>
-          </div>
-          <div className="bg-white rounded-2xl border border-slate-100 p-4 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
-              <svg className="w-4.5 h-4.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                  d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Security</p>
-              <p className="text-xs font-semibold text-slate-700">JWT Protected</p>
-              <p className="text-[10px] text-slate-400">Role: Receptionist</p>
-            </div>
-          </div>
+          ))}
         </div>
 
       </div>
