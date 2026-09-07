@@ -1,0 +1,58 @@
+# Walkthrough - Prompt 1.3: Backend Auth Logic & Government Approval APIs
+
+Successfully implemented the complete Phase 1 authentication and verification backend infrastructure, including Patient auth, Hospital Admin registration with approval gating, and Government Employee approval workflows.
+
+## Changes Completed
+
+### 1. Security & Middleware
+- **[src/utils/generateToken.js](file:///d:/SAHAY0.1/backend/src/utils/generateToken.js)**:
+  - Generates signed JWT tokens with `{ id, role }` and 30-day expiry using `process.env.JWT_SECRET`.
+- **[src/middlewares/authMiddleware.js](file:///d:/SAHAY0.1/backend/src/middlewares/authMiddleware.js)**:
+  - `protect`: Extracts Bearer token, verifies JWT, attaches `req.user` (omitting password hash).
+  - `authorize(...roles)`: RBAC middleware restricting access based on user role (e.g. `GovtEmployee`).
+
+### 2. Patient Authentication
+- **[src/controllers/patientController.js](file:///d:/SAHAY0.1/backend/src/controllers/patientController.js)** & **[src/routes/patientRoutes.js](file:///d:/SAHAY0.1/backend/src/routes/patientRoutes.js)**:
+  - `POST /api/patients/register`: Validates input, prevents duplicates, creates user with `role: 'Patient'`, returns JWT token.
+  - `POST /api/patients/login`: Validates credentials, checks password hash, returns JWT token.
+
+### 3. Hospital Admin Authentication & Verification Lock
+- **[src/controllers/hospitalAuthController.js](file:///d:/SAHAY0.1/backend/src/controllers/hospitalAuthController.js)** & **[src/routes/hospitalAuthRoutes.js](file:///d:/SAHAY0.1/backend/src/routes/hospitalAuthRoutes.js)**:
+  - `POST /api/hospital-auth/register`:
+    - Checks for existing hospital registration number and admin email.
+    - Creates `Hospital` document with `verificationStatus: 'pending'`.
+    - Creates `User` document with `role: 'HospitalAdmin'` referenced to `hospitalId`.
+  - `POST /api/hospital-auth/login`:
+    - Verifies credentials.
+    - Inspects associated hospital's `verificationStatus`.
+    - **Denies access (403 Forbidden)** if status is `'pending'` or `'rejected'`.
+    - Grants access (200 OK with JWT token) only once `'approved'`.
+
+### 4. Government Employee Actions
+- **[src/controllers/govtController.js](file:///d:/SAHAY0.1/backend/src/controllers/govtController.js)** & **[src/routes/govtRoutes.js](file:///d:/SAHAY0.1/backend/src/routes/govtRoutes.js)**:
+  - `POST /api/govt/login` & `POST /api/govt/register`: Government employee authentication.
+  - `GET /api/govt/pending-hospitals`: Protected route (`protect`, `authorize('GovtEmployee')`) retrieving all unverified hospitals awaiting approval.
+  - `PUT /api/govt/verify-hospital/:id`: Protected route allowing government staff to update status to `'approved'` or `'rejected'`.
+
+### 5. Server Mounts
+- **[server.js](file:///d:/SAHAY0.1/backend/server.js)**:
+  - Mounted `/api/patients` -> `patientRoutes`
+  - Mounted `/api/hospital-auth` -> `hospitalAuthRoutes`
+  - Mounted `/api/govt` -> `govtRoutes`
+
+---
+
+## Verification Results
+
+### Automated Integration Test Flow
+Executed complete integration test covering all endpoints:
+1. Patient registration (`POST /api/patients/register`) -> **201 Created & Token Issued**
+2. Patient login (`POST /api/patients/login`) -> **200 OK & Token Issued**
+3. Hospital registration (`POST /api/hospital-auth/register`) -> **201 Created with status: 'pending'**
+4. Hospital Admin login attempt while pending -> **403 Forbidden** ("Access denied: Hospital verification is currently pending government approval")
+5. Govt employee authentication (`POST /api/govt/login`) -> **200 OK & Token Issued**
+6. RBAC access control test (Patient token trying to access government pending list) -> **403 Forbidden**
+7. Govt employee retrieves pending hospitals (`GET /api/govt/pending-hospitals`) -> **200 OK (Hospital present)**
+8. Govt employee approves hospital (`PUT /api/govt/verify-hospital/:id`) -> **200 OK (Status updated to 'approved')**
+9. Hospital Admin login attempt after approval -> **200 OK & Token Issued**
+10. Test data cleanup -> **Completed**

@@ -1,0 +1,49 @@
+# Walkthrough - Prompt 1.2: Database Connection & Core MongoDB Schemas
+
+Successfully implemented the database connection module and core Mongoose schemas required for the Phase 1 authentication flow in the backend.
+
+## Changes Completed
+
+### 1. Database Connection Module
+- **[config/db.js](file:///d:/SAHAY0.1/backend/src/config/db.js)**:
+  - Connects to MongoDB using `mongoose.connect(process.env.MONGO_URI)`.
+  - Logs connection status (`MongoDB Connected: <host>`) and handles errors.
+- **[server.js](file:///d:/SAHAY0.1/backend/server.js)**:
+  - Invokes `connectDB()` during server startup.
+
+### 2. Hospital Model
+- **[models/Hospital.js](file:///d:/SAHAY0.1/backend/src/models/Hospital.js)**:
+  - `hospitalName`: String (required, trimmed)
+  - `registrationNumber`: String (required, unique, trimmed)
+  - `address`: String (required, trimmed)
+  - `contactPhone`: String (required, trimmed)
+  - `adminEmail`: String (required, trimmed, lowercase, regex-validated)
+  - `verificationStatus`: String (enum: `['pending', 'approved', 'rejected']`, default: `'pending'`, required)
+  - Timestamps enabled (`createdAt`, `updatedAt`).
+
+### 3. User Model
+- **[models/User.js](file:///d:/SAHAY0.1/backend/src/models/User.js)**:
+  - `name`: String (required, trimmed)
+  - `email`: String (required, unique, trimmed, lowercase, regex-validated)
+  - `password`: String (required, minlength 6)
+  - `role`: String (enum: `['Patient', 'HospitalAdmin', 'GovtEmployee', 'ASHA', 'Doctor', 'LabHead', 'FacilityAdmin']`, default: `'Patient'`, required)
+  - `hospitalId`: `mongoose.Schema.Types.ObjectId` (ref: `'Hospital'`, default: `null`)
+  - **Security**:
+    - Pre-save Mongoose hook automatically generates salt and hashes password with `bcrypt` when created or modified.
+    - `matchPassword(enteredPassword)` instance method verifies candidate passwords via `bcrypt.compare`.
+    - `toJSON` transformation ensures hashed passwords are never exposed in serialized JSON output.
+  - Timestamps enabled (`createdAt`, `updatedAt`).
+
+---
+
+## Verification Results
+
+### Automated Validation Tests
+Executed automated schema validation suite verifying:
+- Hospital creation with default `verificationStatus: 'pending'` -> **PASSED**
+- User creation with role `'Doctor'` and reference to `hospitalId` -> **PASSED**
+- Password hashing verification (verifying original password string is never persisted; begins with `$2b$`) -> **PASSED**
+- `user.matchPassword()` validation (correct password resolves true, wrong password resolves false) -> **PASSED**
+- Strict enum rejection for invalid hospital `verificationStatus` (throws `ValidationError`) -> **PASSED**
+- Strict enum rejection for invalid user `role` (throws `ValidationError`) -> **PASSED**
+- Server startup connects to MongoDB (`MongoDB Connected: localhost`) without error -> **PASSED**
