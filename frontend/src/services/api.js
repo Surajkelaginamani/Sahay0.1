@@ -25,15 +25,10 @@ export const patientAPI = {
   login: (data) => api.post('/patients/login', data),
 };
 
-// Hospital Admin API (registration only — still uses old endpoint)
+// Hospital Admin API
 export const hospitalAPI = {
   register: (data) => api.post('/hospital-auth/register', data),
   login: (data) => api.post('/hospital-auth/login', data),
-};
-
-// Unified Staff Auth API (Prompt 2.3 — all hospital staff roles)
-export const staffAuthAPI = {
-  login: (data) => api.post('/auth/staff-login', data),
 };
 
 // Government Official API
@@ -50,6 +45,11 @@ export const hospitalAdminAPI = {
   getStaff: () => api.get('/hospital/staff'),
   resetPassword: (id, password) => api.put(`/hospital/staff/${id}/password`, { password }),
   deleteStaff: (id) => api.delete(`/hospital/staff/${id}`),
+};
+
+// Staff Auth API (Unified login for Doctor, ASHA, HospitalAdmin, LabHead, FacilityAdmin)
+export const staffAuthAPI = {
+  login: (data) => api.post('/auth/staff-login', data),
 };
 
 export default api;
