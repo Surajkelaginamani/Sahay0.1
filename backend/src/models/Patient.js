@@ -2,45 +2,49 @@ import mongoose from 'mongoose';
 
 const patientSchema = new mongoose.Schema(
   {
-    // Link to the User account for authentication
-    userId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: true,
-      unique: true,
-    },
-
-    // Demographics
-    name: {
+    // ── Name ─────────────────────────────────────────────────────────────────
+    firstName: {
       type: String,
-      required: [true, 'Patient name is required'],
+      required: [true, 'First name is required'],
       trim: true,
     },
-    dateOfBirth: {
+    lastName: {
+      type: String,
+      required: [true, 'Last name is required'],
+      trim: true,
+    },
+
+    // ── Demographics ──────────────────────────────────────────────────────────
+    dob: {
       type: Date,
       required: [true, 'Date of birth is required'],
     },
     gender: {
       type: String,
-      enum: ['Male', 'Female', 'Other'],
+      enum: {
+        values: ['Male', 'Female', 'Other'],
+        message: '{VALUE} is not a valid gender',
+      },
       required: [true, 'Gender is required'],
     },
     bloodGroup: {
       type: String,
       enum: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'],
     },
+
+    // ── Contact ───────────────────────────────────────────────────────────────
     contactPhone: {
       type: String,
       trim: true,
     },
     address: {
-      village: { type: String, trim: true },
+      village:  { type: String, trim: true },
       district: { type: String, trim: true },
-      state: { type: String, trim: true },
-      pincode: { type: String, trim: true },
+      state:    { type: String, trim: true },
+      pincode:  { type: String, trim: true },
     },
 
-    // ABHA (Ayushman Bharat Health Account)
+    // ── ABHA (Ayushman Bharat Health Account) ─────────────────────────────────
     abhaId: {
       type: String,
       unique: true,
@@ -56,17 +60,43 @@ const patientSchema = new mongoose.Schema(
       default: false,
     },
 
-    // Emergency contact
+    // ── Linked Login Account ──────────────────────────────────────────────────
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+
+    // ── Facility Registration ─────────────────────────────────────────────────
+    registeredAtFacility: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Hospital',
+      default: null,
+    },
+
+    // ── Emergency Contact ─────────────────────────────────────────────────────
     emergencyContact: {
-      name: { type: String, trim: true },
-      phone: { type: String, trim: true },
+      name:     { type: String, trim: true },
+      phone:    { type: String, trim: true },
       relation: { type: String, trim: true },
     },
   },
   {
     timestamps: true,
+    toJSON: {
+      virtuals: true,
+    },
   }
 );
+
+// ── Virtual: full name helper ─────────────────────────────────────────────────
+patientSchema.virtual('fullName').get(function () {
+  return `${this.firstName} ${this.lastName}`;
+});
+
+// ── Index for fast facility-level patient lookup ───────────────────────────────
+patientSchema.index({ registeredAtFacility: 1, createdAt: -1 });
+patientSchema.index({ contactPhone: 1 });
 
 const Patient = mongoose.model('Patient', patientSchema);
 

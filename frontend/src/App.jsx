@@ -14,6 +14,7 @@ import DoctorDashboard from './pages/dashboards/DoctorDashboard';
 import DrDashboardLayout from './pages/dashboards/DrDashboard/DrDashboardLayout';
 import LabDashboard from './pages/dashboards/LabDashboard';
 import AshaDashboard from './pages/dashboards/AshaDashboard';
+import ReceptionistDashboard from './pages/dashboards/ReceptionistDashboard';
 
 function App() {
   return (
@@ -46,6 +47,7 @@ function App() {
             <Route path="/doctor" element={<DrDashboardLayout />} />
             <Route path="/dashboard/lab" element={<LabDashboard />} />
             <Route path="/dashboard/asha" element={<AshaDashboard />} />
+            <Route path="/dashboard/receptionist" element={<ReceptionistDashboard />} />
 
             {/* Fallback route */}
             <Route path="*" element={<Navigate to="/" replace />} />

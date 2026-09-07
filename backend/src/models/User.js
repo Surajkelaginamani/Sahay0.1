@@ -36,6 +36,7 @@ const userSchema = new mongoose.Schema(
           'Doctor',
           'LabHead',
           'FacilityAdmin',
+          'Receptionist',
         ],
         message: '{VALUE} is not a valid user role',
       },
