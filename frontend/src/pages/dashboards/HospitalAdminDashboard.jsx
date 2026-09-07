@@ -70,8 +70,19 @@ export default function HospitalAdminDashboard() {
     password: '',
     role: 'Doctor',
   });
+  const [showFormPassword, setShowFormPassword] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState('');
+
+  // Reset password modal state
+  const [resetModal, setResetModal] = useState({
+    isOpen: false,
+    staff: null,
+    newPassword: '',
+    showPassword: false,
+    loading: false,
+    error: '',
+  });
 
   // ── Toast helpers ─────────────────────────────────────────────────────────
   const addToast = useCallback((type, title, message) => {
@@ -136,7 +147,14 @@ export default function HospitalAdminDashboard() {
     setFormError('');
 
     try {
-      const res = await hospitalAdminAPI.createStaff(formData);
+      const cleanPayload = {
+        name: formData.name.trim(),
+        email: formData.email.trim().toLowerCase(),
+        password: formData.password.trim(),
+        role: formData.role,
+      };
+
+      const res = await hospitalAdminAPI.createStaff(cleanPayload);
 
       // Prepend new staff member to the table
       setStaff((prev) => [res.data.staff, ...prev]);
@@ -144,7 +162,7 @@ export default function HospitalAdminDashboard() {
       addToast(
         'success',
         'Staff Account Created',
-        `${formData.name} (${formData.role}) has been added to your hospital staff.`
+        `${cleanPayload.name} (${cleanPayload.role}) has been added to your hospital staff.`
       );
 
       // Reset form
@@ -153,6 +171,55 @@ export default function HospitalAdminDashboard() {
       setFormError(err.response?.data?.message || 'Failed to create staff account. Please try again.');
     } finally {
       setFormLoading(false);
+    }
+  };
+
+  // ── Delete Staff ──────────────────────────────────────────────────────────
+  const handleDeleteStaff = async (staffMember) => {
+    if (!window.confirm(`Are you sure you want to remove ${staffMember.name} (${staffMember.role}) from this hospital?`)) {
+      return;
+    }
+
+    try {
+      await hospitalAdminAPI.deleteStaff(staffMember._id);
+      setStaff((prev) => prev.filter((s) => s._id !== staffMember._id));
+      addToast('success', 'Staff Member Removed', `${staffMember.name} has been removed from hospital staff.`);
+    } catch (err) {
+      addToast('error', 'Removal Failed', err.response?.data?.message || 'Failed to delete staff member.');
+    }
+  };
+
+  // ── Reset Password ────────────────────────────────────────────────────────
+  const handleOpenResetModal = (staffMember) => {
+    setResetModal({
+      isOpen: true,
+      staff: staffMember,
+      newPassword: '',
+      showPassword: false,
+      loading: false,
+      error: '',
+    });
+  };
+
+  const handleResetPasswordSubmit = async (e) => {
+    e.preventDefault();
+    const { staff: targetStaff, newPassword } = resetModal;
+    if (!newPassword || newPassword.trim().length < 6) {
+      setResetModal((prev) => ({ ...prev, error: 'Password must be at least 6 characters long' }));
+      return;
+    }
+
+    setResetModal((prev) => ({ ...prev, loading: true, error: '' }));
+    try {
+      await hospitalAdminAPI.resetPassword(targetStaff._id, newPassword.trim());
+      addToast('success', 'Password Updated', `Password for ${targetStaff.name} has been reset.`);
+      setResetModal({ isOpen: false, staff: null, newPassword: '', showPassword: false, loading: false, error: '' });
+    } catch (err) {
+      setResetModal((prev) => ({
+        ...prev,
+        loading: false,
+        error: err.response?.data?.message || 'Failed to reset password.',
+      }));
     }
   };
 
@@ -282,21 +349,60 @@ export default function HospitalAdminDashboard() {
 
                 {/* Password */}
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">
-                    Temporary Password *
-                  </label>
-                  <input
-                    type="password"
-                    name="password"
-                    required
-                    minLength={6}
-                    value={formData.password}
-                    onChange={handleFormChange}
-                    placeholder="Minimum 6 characters"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-all"
-                  />
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-medium text-slate-700">
+                      Temporary Password *
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setFormData((prev) => ({ ...prev, password: 'Staff@' + Math.floor(1000 + Math.random() * 9000) }))}
+                        className="text-[11px] font-medium text-sky-600 hover:text-sky-800 transition-colors"
+                      >
+                        Auto-generate
+                      </button>
+                      <span className="text-slate-300">·</span>
+                      <button
+                        type="button"
+                        onClick={() => setShowFormPassword(!showFormPassword)}
+                        className="text-[11px] font-medium text-slate-500 hover:text-slate-700 transition-colors"
+                      >
+                        {showFormPassword ? 'Hide' : 'Show'}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type={showFormPassword ? 'text' : 'password'}
+                      name="password"
+                      required
+                      minLength={6}
+                      autoComplete="new-password"
+                      value={formData.password}
+                      onChange={handleFormChange}
+                      placeholder="Minimum 6 characters"
+                      className="w-full px-3.5 py-2.5 pr-10 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowFormPassword(!showFormPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                      aria-label={showFormPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showFormPassword ? (
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+                        </svg>
+                      ) : (
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
                   <p className="text-[11px] text-slate-400 mt-1">
-                    Stored as salted bcrypt hash. Share securely with the staff member.
+                    Stored securely as a salted bcrypt hash. Share securely with the staff member.
                   </p>
                 </div>
 
@@ -409,6 +515,9 @@ export default function HospitalAdminDashboard() {
                         <th className="px-4 py-3.5 text-[11px] font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap">
                           Added On
                         </th>
+                        <th className="px-4 py-3.5 text-[11px] font-bold uppercase tracking-wider text-slate-500 text-right whitespace-nowrap">
+                          Actions
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -448,6 +557,33 @@ export default function HospitalAdminDashboard() {
                                 })
                               : '—'}
                           </td>
+
+                          {/* Actions */}
+                          <td className="px-4 py-4 whitespace-nowrap text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenResetModal(member)}
+                                title="Reset Password"
+                                className="px-2.5 py-1 rounded-lg border border-slate-200 text-slate-600 hover:text-sky-700 hover:border-sky-300 hover:bg-sky-50 transition-colors text-xs font-semibold inline-flex items-center gap-1"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                                </svg>
+                                <span>Reset Pass</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteStaff(member)}
+                                title="Remove Staff Member"
+                                className="p-1 rounded-lg border border-slate-200 text-slate-400 hover:text-rose-600 hover:border-rose-300 hover:bg-rose-50 transition-colors"
+                              >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            </div>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -470,6 +606,93 @@ export default function HospitalAdminDashboard() {
 
         </div>
       </div>
+
+      {/* ── Reset Password Modal ────────────────────────────────────── */}
+      {resetModal.isOpen && resetModal.staff && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Reset Staff Password</h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Update password for <strong className="text-slate-800">{resetModal.staff.name}</strong> ({resetModal.staff.role})
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setResetModal({ isOpen: false, staff: null, newPassword: '', showPassword: false, loading: false, error: '' })}
+                className="text-slate-400 hover:text-slate-600 p-1"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {resetModal.error && (
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700">
+                {resetModal.error}
+              </div>
+            )}
+
+            <form onSubmit={handleResetPasswordSubmit} className="space-y-4">
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-medium text-slate-700">
+                    New Password *
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setResetModal((prev) => ({ ...prev, showPassword: !prev.showPassword }))}
+                    className="text-[11px] font-medium text-sky-600 hover:text-sky-800 transition-colors"
+                  >
+                    {resetModal.showPassword ? 'Hide' : 'Show'}
+                  </button>
+                </div>
+                <div className="relative">
+                  <input
+                    type={resetModal.showPassword ? 'text' : 'password'}
+                    required
+                    minLength={6}
+                    autoComplete="new-password"
+                    value={resetModal.newPassword}
+                    onChange={(e) => setResetModal((prev) => ({ ...prev, newPassword: e.target.value, error: '' }))}
+                    placeholder="Minimum 6 characters"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                  />
+                </div>
+                <div className="flex items-center gap-2 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setResetModal((prev) => ({ ...prev, newPassword: 'Staff@' + Math.floor(1000 + Math.random() * 9000) }))}
+                    className="text-[11px] text-sky-700 hover:underline font-semibold"
+                  >
+                    Generate random password
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setResetModal({ isOpen: false, staff: null, newPassword: '', showPassword: false, loading: false, error: '' })}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={resetModal.loading}
+                  className="px-4 py-2 text-xs font-semibold text-white bg-sky-600 hover:bg-sky-700 rounded-xl transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {resetModal.loading && <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                  <span>Save New Password</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </>
   );
 }
