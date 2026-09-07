@@ -9,6 +9,7 @@ const HOSPITAL_STAFF_ROLES = [
   'ASHA',
   'LabHead',
   'FacilityAdmin',
+  'Receptionist',
 ];
 
 // @desc    Unified login for all hospital staff roles
