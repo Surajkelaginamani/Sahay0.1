@@ -1,12 +1,25 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+
+// Staff roles that have their own dashboard workspace — public nav is hidden for these
+const STAFF_ROLES = ['Doctor', 'LabHead', 'ASHA', 'HospitalAdmin', 'FacilityAdmin'];
 
 export default function Navbar() {
   const navigate = useNavigate();
+  const location = useLocation();
   const user = JSON.parse(localStorage.getItem('sahay_user') || 'null');
 
+  // Hide public navigation when a staff member is inside their dashboard
+  const isStaffDashboard =
+    user &&
+    STAFF_ROLES.includes(user.role) &&
+    (location.pathname.startsWith('/doctor') ||
+      location.pathname.startsWith('/dashboard/'));
+
   const handleLogout = () => {
+    localStorage.removeItem('token');
     localStorage.removeItem('sahay_token');
+    localStorage.removeItem('user');
     localStorage.removeItem('sahay_user');
     navigate('/');
   };
@@ -17,7 +30,7 @@ export default function Navbar() {
       <div className="bg-gov-900 text-slate-300 text-xs py-1.5 px-4 sm:px-8 flex justify-between items-center">
         <div className="flex items-center gap-2">
           <span className="inline-block w-2 h-2 rounded-full bg-mint-400 animate-pulse"></span>
-          <span>Official Digital Healthcare Platform • Ministry of Health & Family Welfare</span>
+          <span>Official Digital Healthcare Platform • Ministry of Health &amp; Family Welfare</span>
         </div>
         <div className="hidden md:flex items-center gap-4 text-slate-400">
           <span>National Health Helpline: <strong>1075</strong></span>
@@ -27,53 +40,72 @@ export default function Navbar() {
 
       {/* Main Navbar */}
       <div className="max-w-7xl mx-auto px-4 sm:px-8 py-3.5 flex items-center justify-between">
-        {/* Brand */}
-        <Link to="/" className="flex items-center gap-3 group">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-mint-600 via-mint-500 to-sky-500 flex items-center justify-center text-white shadow-md shadow-mint-500/20 group-hover:scale-105 transition-transform">
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
-            </svg>
-          </div>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-xl font-bold tracking-tight text-gov-900">SAHAY</span>
-              <span className="text-[10px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded bg-sky-100 text-sky-800 border border-sky-200">
-                Phase 1
-              </span>
+        {/* Brand — non-clickable when inside a staff dashboard */}
+        {isStaffDashboard ? (
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-mint-600 via-mint-500 to-sky-500 flex items-center justify-center text-white shadow-md shadow-mint-500/20">
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
+              </svg>
             </div>
-            <p className="text-[11px] text-slate-500 font-medium">
-              Smart Access to Healthcare
-            </p>
+            <div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xl font-bold tracking-tight text-gov-900">SAHAY</span>
+                <span className="text-[10px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded bg-sky-100 text-sky-800 border border-sky-200">
+                  Phase 1
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500 font-medium">Smart Access to Healthcare</p>
+            </div>
           </div>
-        </Link>
+        ) : (
+          <Link to="/" className="flex items-center gap-3 group">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-mint-600 via-mint-500 to-sky-500 flex items-center justify-center text-white shadow-md shadow-mint-500/20 group-hover:scale-105 transition-transform">
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
+              </svg>
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xl font-bold tracking-tight text-gov-900">SAHAY</span>
+                <span className="text-[10px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded bg-sky-100 text-sky-800 border border-sky-200">
+                  Phase 1
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500 font-medium">Smart Access to Healthcare</p>
+            </div>
+          </Link>
+        )}
 
-        {/* Navigation Links */}
-        <nav className="hidden md:flex items-center gap-1">
-          <Link
-            to="/"
-            className="px-3.5 py-2 text-sm font-medium text-slate-700 hover:text-gov-900 hover:bg-slate-100 rounded-lg transition-colors"
-          >
-            Overview
-          </Link>
-          <Link
-            to="/auth/patient"
-            className="px-3.5 py-2 text-sm font-medium text-slate-700 hover:text-mint-700 hover:bg-mint-50 rounded-lg transition-colors"
-          >
-            Patient Portal
-          </Link>
-          <Link
-            to="/auth/hospital/login"
-            className="px-3.5 py-2 text-sm font-medium text-slate-700 hover:text-sky-700 hover:bg-sky-50 rounded-lg transition-colors"
-          >
-            Hospital Portal
-          </Link>
-          <Link
-            to="/auth/govt"
-            className="px-3.5 py-2 text-sm font-medium text-slate-700 hover:text-gov-navy hover:bg-slate-100 rounded-lg transition-colors"
-          >
-            Government Portal
-          </Link>
-        </nav>
+        {/* Navigation Links — hidden for staff on their dashboard */}
+        {!isStaffDashboard && (
+          <nav className="hidden md:flex items-center gap-1">
+            <Link
+              to="/"
+              className="px-3.5 py-2 text-sm font-medium text-slate-700 hover:text-gov-900 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              Overview
+            </Link>
+            <Link
+              to="/auth/patient"
+              className="px-3.5 py-2 text-sm font-medium text-slate-700 hover:text-mint-700 hover:bg-mint-50 rounded-lg transition-colors"
+            >
+              Patient Portal
+            </Link>
+            <Link
+              to="/auth/hospital/login"
+              className="px-3.5 py-2 text-sm font-medium text-slate-700 hover:text-sky-700 hover:bg-sky-50 rounded-lg transition-colors"
+            >
+              Hospital Portal
+            </Link>
+            <Link
+              to="/auth/govt"
+              className="px-3.5 py-2 text-sm font-medium text-slate-700 hover:text-gov-navy hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              Government Portal
+            </Link>
+          </nav>
+        )}
 
         {/* User Actions */}
         <div className="flex items-center gap-3">
@@ -113,3 +145,4 @@ export default function Navbar() {
     </header>
   );
 }
+

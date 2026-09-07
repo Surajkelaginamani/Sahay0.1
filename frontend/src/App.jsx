@@ -11,6 +11,7 @@ import PatientDashboard from './pages/dashboards/PatientDashboard';
 import HospitalAdminDashboard from './pages/dashboards/HospitalAdminDashboard';
 import GovtDashboard from './pages/dashboards/GovtDashboard';
 import DoctorDashboard from './pages/dashboards/DoctorDashboard';
+import DrDashboardLayout from './pages/dashboards/DrDashboard/DrDashboardLayout';
 import LabDashboard from './pages/dashboards/LabDashboard';
 import AshaDashboard from './pages/dashboards/AshaDashboard';
 
@@ -41,6 +42,8 @@ function App() {
 
             {/* Staff dashboards */}
             <Route path="/dashboard/doctor" element={<DoctorDashboard />} />
+            {/* Full clinical workspace — protected, role-guarded inside the layout */}
+            <Route path="/doctor" element={<DrDashboardLayout />} />
             <Route path="/dashboard/lab" element={<LabDashboard />} />
             <Route path="/dashboard/asha" element={<AshaDashboard />} />
 

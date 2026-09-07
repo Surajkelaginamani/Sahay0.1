@@ -5,7 +5,7 @@ import { staffAuthAPI } from '../../services/api';
 // Role → route map
 const ROLE_ROUTES = {
   HospitalAdmin: '/dashboard/admin',
-  Doctor: '/dashboard/doctor',
+  Doctor: '/doctor',
   LabHead: '/dashboard/lab',
   ASHA: '/dashboard/asha',
   FacilityAdmin: '/dashboard/admin', // Facility admins share the admin dashboard for now
@@ -69,7 +69,7 @@ export default function HospitalLogin() {
           navigate('/dashboard/admin');
           break;
         case 'Doctor':
-          navigate('/dashboard/doctor');
+          navigate('/doctor');
           break;
         case 'LabHead':
           navigate('/dashboard/lab');
