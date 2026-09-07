@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import receptionistApi from '../services/receptionistApi';
 
 // ─── Field config ──────────────────────────────────────────────────────────────
@@ -59,6 +59,34 @@ export default function PatientRegistrationForm({ onSuccess }) {
   const [searchResults, setSearchResults] = useState(null);
   const [searching, setSearching] = useState(false);
 
+  // Doctors list for optional walk-in queue assignment
+  const [doctors, setDoctors] = useState([]);
+  const [loadingDoctors, setLoadingDoctors] = useState(false);
+  const [autoQueue, setAutoQueue] = useState(false);
+  const [assignedDoctorId, setAssignedDoctorId] = useState('');
+
+  // ── Fetch facility doctors on mount ────────────────────────────────────────
+  useEffect(() => {
+    let active = true;
+    const fetchDoctors = async () => {
+      setLoadingDoctors(true);
+      try {
+        const res = await receptionistApi.getFacilityDoctors();
+        if (active) {
+          const docs = res.data.doctors || [];
+          setDoctors(docs);
+          if (docs.length > 0) setAssignedDoctorId(docs[0]._id);
+        }
+      } catch {
+        // Fallback silently if doctors fail to load
+      } finally {
+        if (active) setLoadingDoctors(false);
+      }
+    };
+    fetchDoctors();
+    return () => { active = false; };
+  }, []);
+
   // ── Helpers ────────────────────────────────────────────────────────────────
   const setField = (key, val) => setForm((f) => ({ ...f, [key]: val }));
   const setAddress = (key, val) =>
@@ -118,9 +146,23 @@ export default function PatientRegistrationForm({ onSuccess }) {
         abhaId:       form.abhaId.trim()       || undefined,
       };
       const res = await receptionistApi.registerPatient(payload);
-      onSuccess?.({ type: 'registered', patient: res.data.patient });
+      const newPatient = res.data.patient;
+      let queueInfo = null;
+
+      // Optional immediate walk-in queue assignment
+      if (autoQueue && assignedDoctorId) {
+        try {
+          const queueRes = await receptionistApi.addToQueue(newPatient._id, assignedDoctorId);
+          queueInfo = queueRes.data.appointment;
+        } catch {
+          // If queue addition fails after registration, still proceed with registration success
+        }
+      }
+
+      onSuccess?.({ type: 'registered', patient: newPatient, queueInfo });
       setForm(EMPTY_FORM);
       setErrors({});
+      setAutoQueue(false);
     } catch (err) {
       const msg = err.response?.data?.message || 'Registration failed. Please try again.';
       // If duplicate phone, the API returns the existing patient — surface it
@@ -352,6 +394,51 @@ export default function PatientRegistrationForm({ onSuccess }) {
               />
             ))}
           </div>
+        </div>
+
+        {/* ── Optional Immediate Queue Assignment ──────────────────────── */}
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-4">
+          <label className="flex items-center gap-2.5 cursor-pointer">
+            <input
+              type="checkbox"
+              id="auto-queue-checkbox"
+              checked={autoQueue}
+              onChange={(e) => setAutoQueue(e.target.checked)}
+              className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 border-amber-300"
+            />
+            <span className="text-xs font-bold text-amber-900">
+              Immediately add patient to today's queue for doctor consultation
+            </span>
+          </label>
+
+          {autoQueue && (
+            <div className="mt-3 pt-3 border-t border-amber-200/60 space-y-2">
+              <label className="block text-[11px] font-bold text-amber-900">
+                Select Consulting Doctor <span className="text-rose-500">*</span>
+              </label>
+              {loadingDoctors ? (
+                <p className="text-xs text-slate-500">Loading facility doctors…</p>
+              ) : doctors.length === 0 ? (
+                <p className="text-xs text-rose-600">
+                  No doctors registered at this facility.
+                </p>
+              ) : (
+                <select
+                  id="auto-queue-doctor-select"
+                  value={assignedDoctorId}
+                  onChange={(e) => setAssignedDoctorId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-amber-200 text-xs bg-white text-slate-800
+                    focus:outline-none focus:ring-2 focus:ring-amber-400"
+                >
+                  {doctors.map((doc) => (
+                    <option key={doc._id} value={doc._id}>
+                      Dr. {doc.name} ({doc.email})
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+          )}
         </div>
 
         {/* API error banner */}

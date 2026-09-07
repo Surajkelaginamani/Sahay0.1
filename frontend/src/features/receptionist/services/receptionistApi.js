@@ -40,9 +40,13 @@ const receptionistApi = {
     }),
 
   // ── Queue ──────────────────────────────────────────────────────────────────
-  /** Add an existing patient to today's walk-in queue (status: Waiting). */
-  addToQueue: (patientId) =>
-    axios.post(`${BASE_URL}/queue`, { patientId }, { headers: getAuthHeader() }),
+  /** Add an existing patient to today's walk-in queue with an assigned doctor. */
+  addToQueue: (patientId, assignedDoctorId, appointmentDate) =>
+    axios.post(
+      `${BASE_URL}/queue`,
+      { patientId, assignedDoctorId, appointmentDate },
+      { headers: getAuthHeader() }
+    ),
 
   /** Fetch today's full appointment queue for the facility. */
   getTodayQueue: (status) =>
@@ -50,6 +54,11 @@ const receptionistApi = {
       params: status ? { status } : {},
       headers: getAuthHeader(),
     }),
+
+  // ── Doctors ────────────────────────────────────────────────────────────────
+  /** Fetch all doctors associated with the receptionist's facility. */
+  getFacilityDoctors: () =>
+    axios.get(`${BASE_URL}/doctors`, { headers: getAuthHeader() }),
 };
 
 export default receptionistApi;

@@ -436,16 +436,18 @@ export const getFacilityPatients = async (req, res) => {
       ...dateFilter,
     })
       .populate('patientId', 'firstName lastName contactPhone gender dob abhaId registeredAtFacility')
+      .populate('assignedDoctorId', 'name email')
       .populate('receptionistId', 'name')
       .sort({ appointmentDate: -1, queueNumber: 1 })
       .lean();
 
-    // Enrich with computed fullName
+    // Enrich with computed fullName and doctorName
     const enriched = appointments.map((appt) => ({
       ...appt,
       patientFullName: appt.patientId
         ? `${appt.patientId.firstName} ${appt.patientId.lastName}`
         : 'Unknown',
+      doctorName: appt.assignedDoctorId?.name || null,
     }));
 
     res.json({

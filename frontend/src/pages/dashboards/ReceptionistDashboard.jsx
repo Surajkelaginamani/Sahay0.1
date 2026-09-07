@@ -119,10 +119,16 @@ export default function ReceptionistDashboard() {
   };
 
   // ── Child callbacks ─────────────────────────────────────────────────────
-  const handlePatientRegistered = useCallback(({ type, patient }) => {
+  const handlePatientRegistered = useCallback(({ type, patient, queueInfo }) => {
     if (type === 'registered') {
-      showToast('success', 'Patient Registered',
-        `${patient.fullName} has been registered with a login account.`);
+      if (queueInfo) {
+        const docText = queueInfo.doctorName ? ` for Dr. ${queueInfo.doctorName}` : '';
+        showToast('success', 'Patient Registered & Queued',
+          `${patient.fullName} registered and queued as #${queueInfo.queueNumber}${docText}.`);
+      } else {
+        showToast('success', 'Patient Registered',
+          `${patient.fullName} has been registered with a login account.`);
+      }
       setActiveTab('queue');
       setQueueRefresh((n) => n + 1);
     } else if (type === 'found') {
@@ -131,9 +137,10 @@ export default function ReceptionistDashboard() {
     }
   }, [showToast]);
 
-  const handleQueueSuccess = useCallback(({ patient, queueNumber }) => {
+  const handleQueueSuccess = useCallback(({ patient, doctorName, queueNumber }) => {
+    const docText = doctorName ? ` for Dr. ${doctorName}` : '';
     showToast('success', 'Added to Queue',
-      `${patient.fullName} is now Queue #${queueNumber}.`);
+      `${patient.fullName} is now Queue #${queueNumber}${docText}.`);
     setQueueRefresh((n) => n + 1);
   }, [showToast]);
 
