@@ -338,13 +338,17 @@ export const getTodayQueue = async (req, res) => {
 // ─── addToQueue ───────────────────────────────────────────────────────────────
 // @route   POST /api/receptionist/queue
 // @access  Private (Receptionist)
-// Body:    { patientId, appointmentDate? }
+// Body:    { patientId, assignedDoctorId, appointmentDate? }
 export const addToQueue = async (req, res) => {
   try {
-    const { patientId, appointmentDate } = req.body;
+    const { patientId, assignedDoctorId, appointmentDate } = req.body;
 
     if (!patientId) {
       return res.status(400).json({ message: 'patientId is required.' });
+    }
+
+    if (!assignedDoctorId) {
+      return res.status(400).json({ message: 'assignedDoctorId is required — please select a doctor.' });
     }
 
     // hospitalId comes from the Receptionist's JWT (set by authMiddleware)
@@ -357,6 +361,16 @@ export const addToQueue = async (req, res) => {
     });
     if (!patient) {
       return res.status(404).json({ message: 'Patient not found in your facility.' });
+    }
+
+    // Verify the assigned doctor belongs to this facility
+    const doctor = await User.findOne({
+      _id:       assignedDoctorId,
+      role:      'Doctor',
+      hospitalId: facilityId,
+    }).select('name email');
+    if (!doctor) {
+      return res.status(404).json({ message: 'Doctor not found in your facility.' });
     }
 
     // Use today's date if no appointmentDate supplied
@@ -374,19 +388,24 @@ export const addToQueue = async (req, res) => {
     const appointment = await Appointment.create({
       patientId,
       facilityId,
-      receptionistId:  req.user._id,
-      appointmentDate: queueDate,
-      status:          'Waiting',
+      receptionistId:   req.user._id,
+      assignedDoctorId,
+      appointmentDate:  queueDate,
+      status:           'Waiting',
       queueNumber,
     });
 
-    await appointment.populate('patientId', 'firstName lastName contactPhone gender');
+    await appointment.populate([
+      { path: 'patientId',        select: 'firstName lastName contactPhone gender' },
+      { path: 'assignedDoctorId', select: 'name email' },
+    ]);
 
     res.status(201).json({
-      message: `Patient added to queue. Queue number: ${queueNumber}.`,
+      message: `Patient added to Dr. ${doctor.name}'s queue. Queue number: ${queueNumber}.`,
       appointment: {
         ...appointment.toObject(),
         patientFullName: `${patient.firstName} ${patient.lastName}`,
+        doctorName:      doctor.name,
       },
     });
   } catch (error) {
@@ -432,6 +451,32 @@ export const getFacilityPatients = async (req, res) => {
     res.json({
       count: enriched.length,
       appointments: enriched,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ─── getFacilityDoctors ───────────────────────────────────────────────────────
+// @route   GET /api/receptionist/doctors
+// @access  Private (Receptionist)
+// Returns all doctors linked to the same hospitalId as the logged-in Receptionist.
+export const getFacilityDoctors = async (req, res) => {
+  try {
+    // hospitalId is embedded in the JWT by generateToken and decoded by authMiddleware
+    const facilityId = req.user.hospitalId;
+
+    const doctors = await User.find({
+      role:      'Doctor',
+      hospitalId: facilityId,
+    })
+      .select('_id name email')
+      .sort({ name: 1 })
+      .lean();
+
+    res.json({
+      count: doctors.length,
+      doctors,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });

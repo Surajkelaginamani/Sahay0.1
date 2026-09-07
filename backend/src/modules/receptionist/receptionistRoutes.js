@@ -8,6 +8,7 @@ import {
   getTodayQueue,
   addToQueue,
   getFacilityPatients,
+  getFacilityDoctors,
 } from './receptionistController.js';
 
 const router = express.Router();
@@ -29,8 +30,12 @@ router.get('/patients',          getFacilityPatients);
 router.post('/appointment',                createAppointment);
 router.patch('/appointment/:id/checkin',   checkInPatient);
 
+// ── Doctor routes ─────────────────────────────────────────────────────────────
+// GET    /api/receptionist/doctors          → all doctors at this facility
+router.get('/doctors', getFacilityDoctors);
+
 // ── Queue routes ──────────────────────────────────────────────────────────────
-// POST   /api/receptionist/queue            → add existing patient to today's queue (Waiting)
+// POST   /api/receptionist/queue            → add existing patient to today's queue (needs assignedDoctorId)
 // GET    /api/receptionist/queue/today      → today's full queue (optional ?status=)
 router.post('/queue',        addToQueue);
 router.get('/queue/today',   getTodayQueue);

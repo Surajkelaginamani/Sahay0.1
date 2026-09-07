@@ -49,3 +49,38 @@ On each search result row, add an "Add to Today's Queue" button. Clicking this m
 Build TodayQueue.jsx: A live table fetching from getFacilityPatients (filtered for today's date) showing the Queue Number, Patient Name, and Status (Waiting).
 
 Organize ReceptionistDashboard.jsx using a tabbed interface (Tab 1: "Today's Queue", Tab 2: "Register New Patient", Tab 3: "Search & Add Existing").
+
+
+# Prompt 4.8: Backend API to Fetch Hospital Doctors
+
+Task: Create an API for the Receptionist to fetch all doctors working at their specific facility.
+
+Requirements:
+
+In backend/src/modules/receptionist/receptionistController.js, create a getFacilityDoctors(req, res) function.
+
+Extract the hospitalId (or facilityId) from the Receptionist's verified JWT token.
+
+Query the User collection for { role: 'Doctor', facilityId: receptionistFacilityId }.
+
+Select and return only the _id, name, and email of the doctors.
+
+Map this to a protected route GET /api/receptionist/doctors in receptionistRoutes.js.
+
+Update the addToQueue function to strictly require assignedDoctorId in the request body and save it into the Appointment (or Queue) document.
+
+# Prompt 4.9: Frontend Queue Assignment UI
+
+Task: Update the Receptionist UI to require selecting a specific doctor when adding a patient to the queue.
+
+Requirements:
+
+In frontend/src/features/receptionist/services/receptionistApi.js, add a function to fetch the doctors using the GET /api/receptionist/doctors endpoint.
+
+In PatientSearch.jsx (and PatientRegistrationForm.jsx if it auto-queues): Fetch the list of doctors on component mount.
+
+Instead of a single "Add to Queue" button, change it to a "Assign to Doctor" button that opens a small modal or reveals a dropdown <select> containing the fetched doctors.
+
+When submitting, include the selected assignedDoctorId in the Axios payload sent to the addToQueue API.
+
+Update TodayQueue.jsx to display an "Assigned Doctor" column, mapping the assignedDoctorId to the doctor's name so the receptionist can see exactly whose room the patient is waiting for.
