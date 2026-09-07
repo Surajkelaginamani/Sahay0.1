@@ -1,31 +1,108 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-
-function StatCard({ icon, label, value, color }) {
-  return (
-    <div className={`bg-white rounded-2xl border ${color.border} p-5 flex items-center gap-4 shadow-sm`}>
-      <div className={`w-11 h-11 rounded-xl ${color.icon} flex items-center justify-center shrink-0`}>
-        {icon}
-      </div>
-      <div>
-        <p className="text-xs text-slate-500 font-medium">{label}</p>
-        <p className={`text-xl font-bold ${color.text}`}>{value}</p>
-      </div>
-    </div>
-  );
-}
+import LabMetrics from '../../features/laboratory/components/LabMetrics';
+import TestQueueTable from '../../features/laboratory/components/TestQueueTable';
+import labApi from '../../features/laboratory/services/labApi';
 
 export default function LabDashboard() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
 
+  // Dashboard Data State
+  const [metrics, setMetrics] = useState({
+    Ordered: 0,
+    SampleCollected: 0,
+    Processing: 0,
+    Completed: 0,
+    total: 0,
+  });
+  const [orders, setOrders] = useState([]);
+  const [loadingMetrics, setLoadingMetrics] = useState(true);
+  const [loadingOrders, setLoadingOrders] = useState(true);
+  const [activeFilter, setActiveFilter] = useState('ALL');
+  const [toast, setToast] = useState(null);
+
+  const showToast = (type, message) => {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 4000);
+  };
+
+  // JWT & Role Guard
   useEffect(() => {
     const stored = localStorage.getItem('user') || localStorage.getItem('sahay_user');
-    if (!stored) { navigate('/auth/hospital/login'); return; }
+    if (!stored) {
+      navigate('/auth/hospital/login');
+      return;
+    }
     const parsed = JSON.parse(stored);
-    if (parsed.role !== 'LabHead') { navigate('/'); return; }
+    if (parsed.role !== 'LabHead') {
+      navigate('/');
+      return;
+    }
     setUser(parsed);
   }, [navigate]);
+
+  // Fetch metrics data
+  const fetchMetrics = useCallback(async () => {
+    setLoadingMetrics(true);
+    try {
+      const res = await labApi.getMetrics();
+      setMetrics(res.data);
+    } catch (err) {
+      console.error('Failed to fetch metrics:', err);
+    } finally {
+      setLoadingMetrics(false);
+    }
+  }, []);
+
+  // Fetch test queue
+  const fetchQueue = useCallback(async (filter) => {
+    setLoadingOrders(true);
+    try {
+      const res = await labApi.getQueue(filter);
+      setOrders(res.data || []);
+    } catch (err) {
+      console.error('Failed to fetch queue:', err);
+      showToast('error', 'Failed to load test queue. Please try again.');
+    } finally {
+      setLoadingOrders(false);
+    }
+  }, []);
+
+  // Initial load
+  useEffect(() => {
+    if (user) {
+      fetchMetrics();
+      fetchQueue(activeFilter);
+    }
+  }, [user, fetchMetrics, fetchQueue, activeFilter]);
+
+  // Status transition handler (e.g. Ordered -> SampleCollected -> Processing)
+  const handleStatusUpdate = async (orderId, nextStatus) => {
+    try {
+      await labApi.updateStatus(orderId, nextStatus);
+      showToast('success', `Test status progressed to '${nextStatus}'.`);
+      // Refresh both queue and metrics
+      fetchMetrics();
+      fetchQueue(activeFilter);
+    } catch (err) {
+      showToast('error', err.response?.data?.message || 'Failed to update test status.');
+    }
+  };
+
+  // Submit diagnostic report handler
+  const handleSubmitReport = async (payload) => {
+    await labApi.submitReport(payload);
+    showToast('success', 'Diagnostic report submitted and verified successfully.');
+    // Refresh both queue and metrics
+    fetchMetrics();
+    fetchQueue(activeFilter);
+  };
+
+  // Filter change handler
+  const handleFilterChange = (newFilter) => {
+    setActiveFilter(newFilter);
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -38,62 +115,122 @@ export default function LabDashboard() {
   if (!user) return null;
 
   return (
-    <div className="min-h-[80vh] bg-gradient-to-br from-slate-50 via-purple-50 to-slate-50 px-4 py-10">
-      <div className="max-w-5xl mx-auto space-y-8">
+    <div className="min-h-[85vh] bg-gradient-to-br from-slate-50 via-teal-50/25 to-sky-50/30 px-4 sm:px-8 py-8">
+      {/* Toast Notification */}
+      {toast && (
+        <div
+          className={`fixed top-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-2xl shadow-xl border text-xs font-semibold animate-fade-in ${
+            toast.type === 'success'
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+              : 'bg-rose-50 border-rose-200 text-rose-900'
+          }`}
+        >
+          {toast.type === 'success' ? (
+            <svg className="w-4 h-4 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+            </svg>
+          ) : (
+            <svg className="w-4 h-4 text-rose-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          )}
+          <span>{toast.message}</span>
+        </div>
+      )}
 
-        {/* Header */}
-        <div className="flex items-start justify-between gap-4">
+      <div className="max-w-7xl mx-auto space-y-8">
+        {/* ── Top Header Banner ────────────────────────────────────────── */}
+        <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-xs">
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center shadow-md shadow-purple-200">
-              <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-teal-500 via-teal-600 to-sky-600 text-white flex items-center justify-center shadow-md shadow-teal-500/20 shrink-0">
+              <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8"
                   d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
               </svg>
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-slate-900">Lab &amp; Diagnostics Dashboard</h1>
-              <p className="text-sm text-slate-500">Welcome back, <span className="font-semibold text-purple-700">{user.name}</span></p>
-              {user.hospitalName && (
-                <p className="text-xs text-slate-400 mt-0.5">{user.hospitalName}</p>
-              )}
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                  Laboratory &amp; Diagnostics
+                </h1>
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-teal-100 text-teal-800 border border-teal-200 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse" />
+                  National Lab Grid
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm text-slate-500 mt-1">
+                Lab Head: <strong className="text-slate-800">{user.name}</strong> &nbsp;·&nbsp;
+                <span className="text-slate-600">{user.hospitalName || 'Accredited Facility'}</span>
+              </p>
             </div>
           </div>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-rose-50 hover:border-rose-200 hover:text-rose-700 transition-all"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
-            Logout
-          </button>
-        </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <StatCard icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>} label="Pending Tests" value="—" color={{ border: 'border-purple-100', icon: 'bg-purple-100 text-purple-600', text: 'text-purple-700' }} />
-          <StatCard icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} label="Reports Ready" value="—" color={{ border: 'border-emerald-100', icon: 'bg-emerald-100 text-emerald-600', text: 'text-emerald-700' }} />
-          <StatCard icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} label="In Progress" value="—" color={{ border: 'border-amber-100', icon: 'bg-amber-100 text-amber-600', text: 'text-amber-700' }} />
-          <StatCard icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" /></svg>} label="This Month" value="—" color={{ border: 'border-sky-100', icon: 'bg-sky-100 text-sky-600', text: 'text-sky-700' }} />
-        </div>
-
-        {/* Coming Soon Banner */}
-        <div className="bg-white rounded-2xl border border-dashed border-purple-200 p-12 text-center space-y-3">
-          <div className="w-16 h-16 mx-auto rounded-2xl bg-purple-50 flex items-center justify-center">
-            <svg className="w-8 h-8 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"
-                d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-            </svg>
+          {/* Quick Actions */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                fetchMetrics();
+                fetchQueue(activeFilter);
+              }}
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+            >
+              <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              <span>Sync Live Data</span>
+            </button>
+            <button
+              onClick={handleLogout}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-rose-50 hover:border-rose-200 hover:text-rose-700 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                  d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              <span>Sign Out</span>
+            </button>
           </div>
-          <h2 className="text-lg font-bold text-slate-700">Lab &amp; Diagnostics Workspace</h2>
-          <p className="text-sm text-slate-400 max-w-sm mx-auto">
-            Test management, report generation, result uploads, and doctor-linked workflows — coming in the next phase.
-          </p>
-          <span className="inline-block px-3 py-1 rounded-full bg-purple-100 text-purple-700 text-xs font-semibold">
-            Phase 3 Feature
-          </span>
         </div>
+
+        {/* ── Metric Cards ────────────────────────────────────────────── */}
+        <section className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+              Laboratory Workload Metrics
+            </h2>
+            {activeFilter !== 'ALL' && (
+              <button
+                onClick={() => setActiveFilter('ALL')}
+                className="text-xs font-semibold text-teal-700 hover:underline"
+              >
+                Clear Card Filter ({activeFilter})
+              </button>
+            )}
+          </div>
+          <LabMetrics
+            metrics={metrics}
+            loading={loadingMetrics}
+            activeFilter={activeFilter}
+            onFilterSelect={handleFilterChange}
+          />
+        </section>
+
+        {/* ── Test Queue & Report Management ──────────────────────────── */}
+        <section>
+          <TestQueueTable
+            orders={orders}
+            loading={loadingOrders}
+            activeFilter={activeFilter}
+            onFilterChange={handleFilterChange}
+            onStatusUpdate={handleStatusUpdate}
+            onSubmitReport={handleSubmitReport}
+            onRefresh={() => {
+              fetchMetrics();
+              fetchQueue(activeFilter);
+            }}
+          />
+        </section>
       </div>
     </div>
   );

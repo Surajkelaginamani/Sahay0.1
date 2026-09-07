@@ -29,3 +29,19 @@ updateOrderStatus(req, res): Updates the status of a specific order.
 submitReport(req, res): Creates a new DiagnosticReport linked to an order and marks the order as Completed.
 
 Create labRoutes.js: Map these controllers to protected Express routes (e.g., GET /api/lab/queue). Ensure the auth middleware restricts access to users with the LabHead role. Mount this router in the main server.js.
+
+# Prompt 3.3: Frontend Feature Isolation & Dashboard UI
+
+Task: Build the React frontend layout for the Lab Head using Tailwind CSS, strictly isolating components in a feature directory.
+
+Requirements:
+
+Create the directory frontend/src/features/laboratory/components/.
+
+Build LabMetrics.jsx: A component displaying 4 metric cards (Tests Ordered, Samples Collected, Processing, Reports Ready) using a soft, clean healthcare color palette (mint green, sky blue, white).
+
+Build TestQueueTable.jsx: A data table to display patient test requests with actionable buttons to update the status.
+
+Update the existing frontend/src/pages/dashboards/LabDashboard.jsx: Import the LabMetrics and TestQueueTable components and render them within a responsive dashboard layout.
+
+Create frontend/src/features/laboratory/services/labApi.js using Axios to handle the requests to the endpoints created in the backend, ensuring the JWT token is passed in the headers.
