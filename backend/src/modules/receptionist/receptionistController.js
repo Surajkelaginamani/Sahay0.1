@@ -300,7 +300,7 @@ export const getTodayQueue = async (req, res) => {
       appointmentDate: { $gte: start, $lte: end },
     };
 
-    if (status && ['Scheduled', 'CheckedIn', 'Completed', 'Cancelled'].includes(status)) {
+    if (status && ['Waiting', 'Scheduled', 'CheckedIn', 'Completed', 'Cancelled'].includes(status)) {
       filter.status = status;
     }
 
@@ -322,6 +322,7 @@ export const getTodayQueue = async (req, res) => {
     // Summary counts
     const summary = {
       total:     enriched.length,
+      waiting:   enriched.filter((a) => a.status === 'Waiting').length,
       scheduled: enriched.filter((a) => a.status === 'Scheduled').length,
       checkedIn: enriched.filter((a) => a.status === 'CheckedIn').length,
       completed: enriched.filter((a) => a.status === 'Completed').length,
@@ -329,6 +330,109 @@ export const getTodayQueue = async (req, res) => {
     };
 
     res.json({ summary, queue: enriched });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ─── addToQueue ───────────────────────────────────────────────────────────────
+// @route   POST /api/receptionist/queue
+// @access  Private (Receptionist)
+// Body:    { patientId, appointmentDate? }
+export const addToQueue = async (req, res) => {
+  try {
+    const { patientId, appointmentDate } = req.body;
+
+    if (!patientId) {
+      return res.status(400).json({ message: 'patientId is required.' });
+    }
+
+    // hospitalId comes from the Receptionist's JWT (set by authMiddleware)
+    const facilityId = req.user.hospitalId;
+
+    // Verify patient exists and belongs to this facility
+    const patient = await Patient.findOne({
+      _id: patientId,
+      registeredAtFacility: facilityId,
+    });
+    if (!patient) {
+      return res.status(404).json({ message: 'Patient not found in your facility.' });
+    }
+
+    // Use today's date if no appointmentDate supplied
+    const queueDate = appointmentDate ? new Date(appointmentDate) : new Date();
+
+    // Sequential queue number: count all Waiting/CheckedIn entries for this facility today
+    const { start, end } = getTodayRange();
+    const existingCount = await Appointment.countDocuments({
+      facilityId,
+      appointmentDate: { $gte: start, $lte: end },
+      status: { $in: ['Waiting', 'CheckedIn'] },
+    });
+    const queueNumber = existingCount + 1;
+
+    const appointment = await Appointment.create({
+      patientId,
+      facilityId,
+      receptionistId:  req.user._id,
+      appointmentDate: queueDate,
+      status:          'Waiting',
+      queueNumber,
+    });
+
+    await appointment.populate('patientId', 'firstName lastName contactPhone gender');
+
+    res.status(201).json({
+      message: `Patient added to queue. Queue number: ${queueNumber}.`,
+      appointment: {
+        ...appointment.toObject(),
+        patientFullName: `${patient.firstName} ${patient.lastName}`,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ─── getFacilityPatients ──────────────────────────────────────────────────────
+// @route   GET /api/receptionist/patients
+// @access  Private (Receptionist)
+// Returns every unique patient who has ever had an appointment at this facility,
+// optionally filtered to today with ?today=true
+export const getFacilityPatients = async (req, res) => {
+  try {
+    const facilityId = req.user.hospitalId;
+    const { today } = req.query;
+
+    // Build date filter when ?today=true
+    const dateFilter = {};
+    if (today === 'true') {
+      const { start, end } = getTodayRange();
+      dateFilter.appointmentDate = { $gte: start, $lte: end };
+    }
+
+    // Fetch all appointments at this facility (optionally today only)
+    const appointments = await Appointment.find({
+      facilityId,
+      ...dateFilter,
+    })
+      .populate('patientId', 'firstName lastName contactPhone gender dob abhaId registeredAtFacility')
+      .populate('receptionistId', 'name')
+      .sort({ appointmentDate: -1, queueNumber: 1 })
+      .lean();
+
+    // Enrich with computed fullName
+    const enriched = appointments.map((appt) => ({
+      ...appt,
+      patientFullName: appt.patientId
+        ? `${appt.patientId.firstName} ${appt.patientId.lastName}`
+        : 'Unknown',
+    }));
+
+    res.json({
+      count: enriched.length,
+      appointments: enriched,
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
