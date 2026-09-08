@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { govtAPI } from '../../services/api';
+import { getStoredAuth } from '../../utils/auth';
 
 export default function GovtLogin() {
   const [formData, setFormData] = useState({
@@ -10,6 +11,40 @@ export default function GovtLogin() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const auth = getStoredAuth();
+    if (auth && auth.user && auth.user.role) {
+      const user = auth.user;
+      switch (user.role) {
+        case 'Doctor':
+          navigate('/dashboard/doctor', { replace: true });
+          break;
+        case 'HospitalAdmin':
+        case 'FacilityAdmin':
+          navigate('/dashboard/admin', { replace: true });
+          break;
+        case 'Receptionist':
+          navigate('/dashboard/receptionist', { replace: true });
+          break;
+        case 'LabHead':
+          navigate('/dashboard/lab', { replace: true });
+          break;
+        case 'Patient':
+          navigate('/dashboard/patient', { replace: true });
+          break;
+        case 'Govt':
+        case 'GovernmentOfficial':
+          navigate('/dashboard/govt', { replace: true });
+          break;
+        case 'ASHA':
+          navigate('/dashboard/asha', { replace: true });
+          break;
+        default:
+          break;
+      }
+    }
+  }, [navigate]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });

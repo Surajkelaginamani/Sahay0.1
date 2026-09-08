@@ -37,10 +37,12 @@ export default function PatientSearch({ onQueueSuccess }) {
   // Per-patient queue and assignment states
   const [assigningPatientId, setAssigningPatientId] = useState(null); // ID of patient currently selecting doctor
   const [selectedDoctorId, setSelectedDoctorId]     = useState({});   // { [patientId]: doctorId }
+  const [selectedPriority, setSelectedPriority]     = useState({});   // { [patientId]: 'Routine' | 'Urgent' }
   const [queueState, setQueueState]                 = useState({});   // { [patientId]: 'idle' | 'loading' | 'done' | 'error' }
   const [queueError, setQueueError]                 = useState({});   // { [patientId]: errorMessage }
   const [queueNumbers, setQueueNumbers]             = useState({});   // { [patientId]: queueNumber }
   const [assignedDoctors, setAssignedDoctors]       = useState({});   // { [patientId]: doctorName }
+  const [queuePriorities, setQueuePriorities]       = useState({});   // { [patientId]: 'Routine' | 'Urgent' }
 
   // ── Fetch facility doctors on mount ────────────────────────────────────────
   useEffect(() => {
@@ -96,12 +98,17 @@ export default function PatientSearch({ onQueueSuccess }) {
     if (!selectedDoctorId[patient._id] && doctors.length > 0) {
       setSelectedDoctorId((prev) => ({ ...prev, [patient._id]: doctors[0]._id }));
     }
+    // Default priority to Routine
+    if (!selectedPriority[patient._id]) {
+      setSelectedPriority((prev) => ({ ...prev, [patient._id]: 'Routine' }));
+    }
   };
 
   // ── Confirm adding to queue with assigned doctor ──────────────────────────
   const handleConfirmAddToQueue = useCallback(async (patient) => {
-    const pid = patient._id;
-    const docId = selectedDoctorId[pid];
+    const pid      = patient._id;
+    const docId    = selectedDoctorId[pid];
+    const priority = selectedPriority[pid] || 'Routine';
 
     if (!docId) {
       setQueueError((e) => ({ ...e, [pid]: 'Please select a doctor to assign.' }));
@@ -112,23 +119,24 @@ export default function PatientSearch({ onQueueSuccess }) {
     setQueueError((e) => ({ ...e, [pid]: '' }));
 
     try {
-      const res = await receptionistApi.addToQueue(pid, docId);
+      const res = await receptionistApi.addToQueue(pid, docId, undefined, priority);
       const qNum = res.data.appointment?.queueNumber;
       const assignedDoc = doctors.find((d) => d._id === docId);
       const doctorName = assignedDoc ? assignedDoc.name : res.data.appointment?.doctorName || 'Doctor';
 
       setQueueNumbers((n) => ({ ...n, [pid]: qNum }));
       setAssignedDoctors((d) => ({ ...d, [pid]: doctorName }));
+      setQueuePriorities((p) => ({ ...p, [pid]: priority }));
       setQueueState((s) => ({ ...s, [pid]: 'done' }));
       setAssigningPatientId(null);
 
-      onQueueSuccess?.({ patient, doctorName, queueNumber: qNum });
+      onQueueSuccess?.({ patient, doctorName, queueNumber: qNum, priority });
     } catch (err) {
       const msg = err.response?.data?.message || 'Failed to add to queue.';
       setQueueState((s) => ({ ...s, [pid]: 'error' }));
       setQueueError((e) => ({ ...e, [pid]: msg }));
     }
-  }, [doctors, onQueueSuccess, selectedDoctorId]);
+  }, [doctors, onQueueSuccess, selectedDoctorId, selectedPriority]);
 
   return (
     <div className="space-y-4">
@@ -268,7 +276,18 @@ export default function PatientSearch({ onQueueSuccess }) {
                       {/* Queue action / Status */}
                       <div className="shrink-0 flex items-center gap-2">
                         {state === 'done' ? (
-                          <QueueBadge queueNumber={qNum} doctorName={docName} />
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-1.5">
+                            <QueueBadge queueNumber={qNum} doctorName={docName} />
+                            {queuePriorities[patient._id] === 'Urgent' && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 text-[10px] font-bold border border-rose-200">
+                                <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5"
+                                    d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                                </svg>
+                                URGENT
+                              </span>
+                            )}
+                          </div>
                         ) : !isAssigning ? (
                           <button
                             id={`assign-btn-${patient._id}`}
@@ -329,6 +348,37 @@ export default function PatientSearch({ onQueueSuccess }) {
                             )}
                           </div>
 
+                          {/* Priority / Urgency select */}
+                          <div className="sm:w-36">
+                            <label className="block text-[11px] font-bold text-violet-900 mb-1 flex items-center gap-1">
+                              <svg className="w-3.5 h-3.5 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                                  d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                              </svg>
+                              Urgency
+                            </label>
+                            <select
+                              id={`priority-select-${patient._id}`}
+                              value={selectedPriority[patient._id] || 'Routine'}
+                              onChange={(e) =>
+                                setSelectedPriority((prev) => ({
+                                  ...prev,
+                                  [patient._id]: e.target.value,
+                                }))
+                              }
+                              className={`w-full px-3 py-2 rounded-lg border text-xs font-semibold
+                                focus:outline-none focus:ring-2 focus:ring-violet-400
+                                ${
+                                  (selectedPriority[patient._id] || 'Routine') === 'Urgent'
+                                    ? 'border-rose-300 bg-rose-50 text-rose-700'
+                                    : 'border-violet-200 bg-white text-slate-700'
+                                }`}
+                            >
+                              <option value="Routine">✔ Routine</option>
+                              <option value="Urgent">⚠️ Urgent</option>
+                            </select>
+                          </div>
+
                           {/* Confirm & Cancel buttons */}
                           <div className="flex items-center gap-2 sm:self-end">
                             <button
@@ -340,9 +390,14 @@ export default function PatientSearch({ onQueueSuccess }) {
                                 doctors.length === 0
                               }
                               onClick={() => handleConfirmAddToQueue(patient)}
-                              className="px-4 py-2 rounded-lg bg-violet-600 text-white text-xs font-bold
-                                hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed
-                                flex items-center gap-1.5 transition-colors shadow-sm"
+                              className={`px-4 py-2 rounded-lg text-white text-xs font-bold
+                                disabled:opacity-50 disabled:cursor-not-allowed
+                                flex items-center gap-1.5 transition-colors shadow-sm
+                                ${
+                                  (selectedPriority[patient._id] || 'Routine') === 'Urgent'
+                                    ? 'bg-rose-600 hover:bg-rose-700'
+                                    : 'bg-violet-600 hover:bg-violet-700'
+                                }`}
                             >
                               {state === 'loading' ? (
                                 <>

@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { staffAuthAPI } from '../../services/api';
+import { getStoredAuth } from '../../utils/auth';
 
 // Role → route map
 const ROLE_ROUTES = {
   HospitalAdmin: '/dashboard/admin',
-  Doctor: '/doctor',
+  Doctor: '/dashboard/doctor',
   LabHead: '/dashboard/lab',
   ASHA: '/dashboard/asha',
   FacilityAdmin: '/dashboard/admin', // Facility admins share the admin dashboard for now
@@ -29,6 +30,40 @@ export default function HospitalLogin() {
   const [error, setError] = useState('');
   const [errorType, setErrorType] = useState(''); // 'pending' | 'rejected' | 'generic'
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const auth = getStoredAuth();
+    if (auth && auth.user && auth.user.role) {
+      const user = auth.user;
+      switch (user.role) {
+        case 'Doctor':
+          navigate('/dashboard/doctor', { replace: true });
+          break;
+        case 'HospitalAdmin':
+        case 'FacilityAdmin':
+          navigate('/dashboard/admin', { replace: true });
+          break;
+        case 'Receptionist':
+          navigate('/dashboard/receptionist', { replace: true });
+          break;
+        case 'LabHead':
+          navigate('/dashboard/lab', { replace: true });
+          break;
+        case 'Patient':
+          navigate('/dashboard/patient', { replace: true });
+          break;
+        case 'Govt':
+        case 'GovernmentOfficial':
+          navigate('/dashboard/govt', { replace: true });
+          break;
+        case 'ASHA':
+          navigate('/dashboard/asha', { replace: true });
+          break;
+        default:
+          break;
+      }
+    }
+  }, [navigate]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -72,7 +107,7 @@ export default function HospitalLogin() {
           navigate('/dashboard/admin');
           break;
         case 'Doctor':
-          navigate('/doctor');
+          navigate('/dashboard/doctor');
           break;
         case 'LabHead':
           navigate('/dashboard/lab');
@@ -85,6 +120,9 @@ export default function HospitalLogin() {
           break;
         case 'Receptionist':
           navigate('/dashboard/receptionist');
+          break;
+        case 'Nurse':
+          navigate('/dashboard/nurse');
           break;
         default:
           navigate('/');

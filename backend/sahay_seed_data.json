@@ -1,0 +1,83 @@
+{
+  "hospitals": [
+    {
+      "hospitalId_ref": "H1",
+      "hospitalName": "Ahmednagar Civil Hospital",
+      "registrationNumber": "MH414001",
+      "address": "Station Road, Ahmednagar, Maharashtra 414001",
+      "contactPhone": "9876543210",
+      "verificationStatus": "approved"
+    },
+    {
+      "hospitalId_ref": "H2",
+      "hospitalName": "Anand Rishiji Hospital",
+      "registrationNumber": "MH414002",
+      "address": "Maliwada, Ahmednagar, Maharashtra 414001",
+      "contactPhone": "9876543211",
+      "verificationStatus": "approved"
+    },
+    {
+      "hospitalId_ref": "H3",
+      "hospitalName": "Shrirampur Rural Hospital",
+      "registrationNumber": "MH413709",
+      "address": "Main Road, Shrirampur, Ahmednagar, Maharashtra 413709",
+      "contactPhone": "9876543212",
+      "verificationStatus": "approved"
+    },
+    {
+      "hospitalId_ref": "H4",
+      "hospitalName": "Sangamner Care Center",
+      "registrationNumber": "MH422605",
+      "address": "Pune Highway, Sangamner, Ahmednagar, Maharashtra 422605",
+      "contactPhone": "9876543213",
+      "verificationStatus": "approved"
+    },
+    {
+      "hospitalId_ref": "H5",
+      "hospitalName": "Rahuri General Hospital",
+      "registrationNumber": "MH413705",
+      "address": "Nagar-Manmad Road, Rahuri, Ahmednagar, Maharashtra 413705",
+      "contactPhone": "9876543214",
+      "verificationStatus": "approved"
+    }
+  ],
+  "staff": [
+    { "hospitalId_ref": "H1", "name": "Rajesh Admin", "email": "admin.civil@sahay.in", "role": "HospitalAdmin" },
+    { "hospitalId_ref": "H1", "name": "Priya Reception", "email": "recep.civil@sahay.in", "role": "Receptionist" },
+    { "hospitalId_ref": "H1", "name": "Amit LabHead", "email": "lab.civil@sahay.in", "role": "LabHead" },
+    { "hospitalId_ref": "H1", "name": "Sunita ASHA", "email": "asha.civil@sahay.in", "role": "ASHA" },
+    { "hospitalId_ref": "H1", "name": "Dr. Ramesh Sharma", "email": "dr.sharma.civil@sahay.in", "role": "Doctor" },
+    { "hospitalId_ref": "H1", "name": "Dr. Sneha Patil", "email": "dr.patil.civil@sahay.in", "role": "Doctor" },
+
+    { "hospitalId_ref": "H2", "name": "Vikram Admin", "email": "admin.anand@sahay.in", "role": "HospitalAdmin" },
+    { "hospitalId_ref": "H2", "name": "Neha Reception", "email": "recep.anand@sahay.in", "role": "Receptionist" },
+    { "hospitalId_ref": "H2", "name": "Sanjay LabHead", "email": "lab.anand@sahay.in", "role": "LabHead" },
+    { "hospitalId_ref": "H2", "name": "Kavita ASHA", "email": "asha.anand@sahay.in", "role": "ASHA" },
+    { "hospitalId_ref": "H2", "name": "Dr. Anil Deshmukh", "email": "dr.deshmukh.anand@sahay.in", "role": "Doctor" },
+
+    { "hospitalId_ref": "H3", "name": "Suresh Admin", "email": "admin.shrirampur@sahay.in", "role": "HospitalAdmin" },
+    { "hospitalId_ref": "H3", "name": "Pooja Reception", "email": "recep.shrirampur@sahay.in", "role": "Receptionist" },
+    { "hospitalId_ref": "H3", "name": "Ravi LabHead", "email": "lab.shrirampur@sahay.in", "role": "LabHead" },
+    { "hospitalId_ref": "H3", "name": "Meena ASHA", "email": "asha.shrirampur@sahay.in", "role": "ASHA" },
+    { "hospitalId_ref": "H3", "name": "Dr. Vivek Kale", "email": "dr.kale.shrirampur@sahay.in", "role": "Doctor" },
+
+    { "hospitalId_ref": "H4", "name": "Rahul Admin", "email": "admin.sangamner@sahay.in", "role": "HospitalAdmin" },
+    { "hospitalId_ref": "H4", "name": "Swati Reception", "email": "recep.sangamner@sahay.in", "role": "Receptionist" },
+    { "hospitalId_ref": "H4", "name": "Kiran LabHead", "email": "lab.sangamner@sahay.in", "role": "LabHead" },
+    { "hospitalId_ref": "H4", "name": "Lata ASHA", "email": "asha.sangamner@sahay.in", "role": "ASHA" },
+    { "hospitalId_ref": "H4", "name": "Dr. Prakash Kulkarni", "email": "dr.kulkarni.sangamner@sahay.in", "role": "Doctor" },
+
+    { "hospitalId_ref": "H5", "name": "Manoj Admin", "email": "admin.rahuri@sahay.in", "role": "HospitalAdmin" },
+    { "hospitalId_ref": "H5", "name": "Anjali Reception", "email": "recep.rahuri@sahay.in", "role": "Receptionist" },
+    { "hospitalId_ref": "H5", "name": "Nitin LabHead", "email": "lab.rahuri@sahay.in", "role": "LabHead" },
+    { "hospitalId_ref": "H5", "name": "Usha ASHA", "email": "asha.rahuri@sahay.in", "role": "ASHA" },
+    { "hospitalId_ref": "H5", "name": "Dr. Deepak Pawar", "email": "dr.pawar.rahuri@sahay.in", "role": "Doctor" }
+  ],
+  "patients": [
+    { "name": "Sandeep Shinde", "email": "sandeep.shinde@example.com", "phone": "9012345671", "address": "Savedi, Ahmednagar, Maharashtra", "role": "Patient" },
+    { "name": "Rani Gaikwad", "email": "rani.gaikwad@example.com", "phone": "9012345672", "address": "Bhingar, Ahmednagar, Maharashtra", "role": "Patient" },
+    { "name": "Vishal Jadhav", "email": "vishal.jadhav@example.com", "phone": "9012345673", "address": "Kedgaon, Ahmednagar, Maharashtra", "role": "Patient" },
+    { "name": "Jyoti Kadam", "email": "jyoti.kadam@example.com", "phone": "9012345674", "address": "Shrirampur, Ahmednagar, Maharashtra", "role": "Patient" },
+    { "name": "Sachin Thorat", "email": "sachin.thorat@example.com", "phone": "9012345675", "address": "Sangamner, Ahmednagar, Maharashtra", "role": "Patient" }
+  ]
+}

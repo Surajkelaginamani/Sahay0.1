@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { hospitalAPI } from '../../services/api';
+import { getStoredAuth } from '../../utils/auth';
 
 export default function HospitalRegister() {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     hospitalName: '',
     registrationNumber: '',
@@ -17,6 +19,40 @@ export default function HospitalRegister() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [registeredData, setRegisteredData] = useState(null);
+
+  useEffect(() => {
+    const auth = getStoredAuth();
+    if (auth && auth.user && auth.user.role) {
+      const user = auth.user;
+      switch (user.role) {
+        case 'Doctor':
+          navigate('/dashboard/doctor', { replace: true });
+          break;
+        case 'HospitalAdmin':
+        case 'FacilityAdmin':
+          navigate('/dashboard/admin', { replace: true });
+          break;
+        case 'Receptionist':
+          navigate('/dashboard/receptionist', { replace: true });
+          break;
+        case 'LabHead':
+          navigate('/dashboard/lab', { replace: true });
+          break;
+        case 'Patient':
+          navigate('/dashboard/patient', { replace: true });
+          break;
+        case 'Govt':
+        case 'GovernmentOfficial':
+          navigate('/dashboard/govt', { replace: true });
+          break;
+        case 'ASHA':
+          navigate('/dashboard/asha', { replace: true });
+          break;
+        default:
+          break;
+      }
+    }
+  }, [navigate]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });

@@ -112,7 +112,7 @@ export default function QueueManager({ onCheckInSuccess, refreshTrigger }) {
       <div className="grid grid-cols-4 gap-3">
         {[
           { label: 'Total',     value: summary.total,     color: 'text-slate-800', bg: 'bg-slate-50',    border: 'border-slate-200' },
-          { label: 'Waiting',   value: summary.scheduled, color: 'text-sky-700',   bg: 'bg-sky-50',      border: 'border-sky-200' },
+          { label: 'Urgent',    value: queue.filter((a) => a.priority === 'Urgent').length, color: 'text-rose-700', bg: 'bg-rose-50', border: 'border-rose-200' },
           { label: 'Checked In',value: summary.checkedIn, color: 'text-amber-700', bg: 'bg-amber-50',    border: 'border-amber-200' },
           { label: 'Completed', value: summary.completed, color: 'text-emerald-700',bg:'bg-emerald-50', border: 'border-emerald-200' },
         ].map(({ label, value, color, bg, border }) => (
@@ -206,7 +206,10 @@ export default function QueueManager({ onCheckInSuccess, refreshTrigger }) {
                   return (
                     <tr
                       key={appt._id}
-                      className={`transition-colors ${idx % 2 === 0 ? 'bg-white hover:bg-slate-50/60' : 'bg-slate-50/30 hover:bg-slate-100/50'}`}
+                      className={`transition-colors
+                        ${appt.priority === 'Urgent'
+                          ? 'bg-rose-50/80 hover:bg-rose-100/60 border-l-4 border-rose-400'
+                          : idx % 2 === 0 ? 'bg-white hover:bg-slate-50/60' : 'bg-slate-50/30 hover:bg-slate-100/50'}`}
                     >
                       {/* Queue number */}
                       <td className="px-4 py-3.5">
@@ -221,7 +224,14 @@ export default function QueueManager({ onCheckInSuccess, refreshTrigger }) {
                             {fullName.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase()}
                           </div>
                           <div className="min-w-0">
-                            <p className="text-sm font-semibold text-slate-800 truncate">{fullName}</p>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <p className="text-sm font-semibold text-slate-800 truncate">{fullName}</p>
+                              {appt.priority === 'Urgent' && (
+                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-700 text-[9px] font-bold border border-rose-200">
+                                  ⚠ URGENT
+                                </span>
+                              )}
+                            </div>
                             <p className="text-[11px] text-slate-400">{phone}</p>
                           </div>
                         </div>

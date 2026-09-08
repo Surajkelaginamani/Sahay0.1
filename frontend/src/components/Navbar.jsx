@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { getStoredAuth } from '../utils/auth';
 
 // Staff roles that have their own dashboard workspace — public nav is hidden for these
 const STAFF_ROLES = ['Doctor', 'LabHead', 'ASHA', 'HospitalAdmin', 'FacilityAdmin'];
@@ -7,7 +8,8 @@ const STAFF_ROLES = ['Doctor', 'LabHead', 'ASHA', 'HospitalAdmin', 'FacilityAdmi
 export default function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
-  const user = JSON.parse(localStorage.getItem('sahay_user') || 'null');
+  const auth = getStoredAuth();
+  const user = auth?.user || null;
 
   // Hide public navigation when a staff member is inside their dashboard
   const isStaffDashboard =
@@ -15,6 +17,44 @@ export default function Navbar() {
     STAFF_ROLES.includes(user.role) &&
     (location.pathname.startsWith('/doctor') ||
       location.pathname.startsWith('/dashboard/'));
+
+  const handleGoToDashboard = () => {
+    if (!user || !user.role) {
+      navigate('/');
+      return;
+    }
+    switch (user.role) {
+      case 'Doctor':
+        navigate('/dashboard/doctor');
+        break;
+      case 'HospitalAdmin':
+      case 'FacilityAdmin':
+        navigate('/dashboard/admin');
+        break;
+      case 'Receptionist':
+        navigate('/dashboard/receptionist');
+        break;
+      case 'Nurse':
+        navigate('/dashboard/nurse');
+        break;
+      case 'LabHead':
+        navigate('/dashboard/lab');
+        break;
+      case 'Patient':
+        navigate('/dashboard/patient');
+        break;
+      case 'Govt':
+      case 'GovernmentOfficial':
+        navigate('/dashboard/govt');
+        break;
+      case 'ASHA':
+        navigate('/dashboard/asha');
+        break;
+      default:
+        navigate('/');
+        break;
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -86,24 +126,39 @@ export default function Navbar() {
             >
               Overview
             </Link>
-            <Link
-              to="/auth/patient"
-              className="px-3.5 py-2 text-sm font-medium text-slate-700 hover:text-mint-700 hover:bg-mint-50 rounded-lg transition-colors"
-            >
-              Patient Portal
-            </Link>
-            <Link
-              to="/auth/hospital/login"
-              className="px-3.5 py-2 text-sm font-medium text-slate-700 hover:text-sky-700 hover:bg-sky-50 rounded-lg transition-colors"
-            >
-              Hospital Portal
-            </Link>
-            <Link
-              to="/auth/govt"
-              className="px-3.5 py-2 text-sm font-medium text-slate-700 hover:text-gov-navy hover:bg-slate-100 rounded-lg transition-colors"
-            >
-              Government Portal
-            </Link>
+            {user ? (
+              <button
+                id="navbar-go-to-dashboard-btn"
+                onClick={handleGoToDashboard}
+                className="px-3.5 py-2 text-sm font-semibold text-mint-700 hover:text-mint-800 hover:bg-mint-50 rounded-lg transition-colors inline-flex items-center gap-2 cursor-pointer"
+              >
+                <svg className="w-4 h-4 text-mint-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                </svg>
+                <span>Go to Dashboard</span>
+              </button>
+            ) : (
+              <>
+                <Link
+                  to="/auth/patient"
+                  className="px-3.5 py-2 text-sm font-medium text-slate-700 hover:text-mint-700 hover:bg-mint-50 rounded-lg transition-colors"
+                >
+                  Patient Portal
+                </Link>
+                <Link
+                  to="/auth/hospital/login"
+                  className="px-3.5 py-2 text-sm font-medium text-slate-700 hover:text-sky-700 hover:bg-sky-50 rounded-lg transition-colors"
+                >
+                  Hospital Portal
+                </Link>
+                <Link
+                  to="/auth/govt"
+                  className="px-3.5 py-2 text-sm font-medium text-slate-700 hover:text-gov-navy hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  Government Portal
+                </Link>
+              </>
+            )}
           </nav>
         )}
 
@@ -114,6 +169,12 @@ export default function Navbar() {
               <span className="text-xs font-medium text-slate-600 hidden sm:inline">
                 Signed in as <strong className="text-slate-900">{user.name}</strong> ({user.role})
               </span>
+              <button
+                onClick={handleGoToDashboard}
+                className="md:hidden px-3 py-1.5 text-xs font-semibold text-mint-700 bg-mint-50 hover:bg-mint-100 rounded-lg border border-mint-200 transition-colors"
+              >
+                Dashboard
+              </button>
               <button
                 onClick={handleLogout}
                 className="px-3 py-1.5 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-lg border border-rose-200 transition-colors"

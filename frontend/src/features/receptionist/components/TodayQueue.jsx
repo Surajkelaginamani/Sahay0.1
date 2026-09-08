@@ -118,6 +118,7 @@ export default function TodayQueue({ refreshTrigger, onCheckInSuccess }) {
         <div className="flex flex-wrap gap-2">
           {[
             { label: 'Total',      val: appointments.length, color: 'bg-slate-100 text-slate-700' },
+            { label: 'Urgent',     val: appointments.filter((a) => a.priority === 'Urgent').length, color: 'bg-rose-100 text-rose-700' },
             { label: 'Waiting',    val: counts.Waiting   || 0, color: 'bg-amber-100 text-amber-700' },
             { label: 'Checked In', val: counts.CheckedIn || 0, color: 'bg-emerald-100 text-emerald-700' },
             { label: 'Completed',  val: counts.Completed || 0, color: 'bg-violet-100 text-violet-700' },
@@ -218,7 +219,7 @@ export default function TodayQueue({ refreshTrigger, onCheckInSuccess }) {
           <table className="w-full text-sm border-collapse">
             <thead>
               <tr className="text-left">
-                {['#', 'Patient', 'Phone', 'Assigned Doctor', 'Status', 'Time', 'Action'].map((h) => (
+                {['#', 'Patient', 'Phone', 'Priority', 'Assigned Doctor', 'Status', 'Time', 'Action'].map((h) => (
                   <th key={h} className="pb-2.5 px-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 whitespace-nowrap">
                     {h}
                   </th>
@@ -232,7 +233,13 @@ export default function TodayQueue({ refreshTrigger, onCheckInSuccess }) {
                 const docName       = getDoctorName(appt);
 
                 return (
-                  <tr key={appt._id} className="hover:bg-slate-50/60 transition-colors group">
+                  <tr
+                    key={appt._id}
+                    className={`transition-colors group
+                      ${appt.priority === 'Urgent'
+                        ? 'bg-rose-50/70 hover:bg-rose-100/60 border-l-4 border-rose-400'
+                        : 'hover:bg-slate-50/60'}`}
+                  >
                     {/* Queue number */}
                     <td className="py-3 px-2">
                       {appt.queueNumber ? (
@@ -265,6 +272,21 @@ export default function TodayQueue({ refreshTrigger, onCheckInSuccess }) {
                     {/* Phone */}
                     <td className="py-3 px-2 text-xs text-slate-500 whitespace-nowrap">
                       {appt.patientId?.contactPhone || '—'}
+                    </td>
+
+                    {/* Priority badge */}
+                    <td className="py-3 px-2 whitespace-nowrap">
+                      {appt.priority === 'Urgent' ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 text-[10px] font-bold border border-rose-200">
+                          <svg className="w-2.5 h-2.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5"
+                              d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                          </svg>
+                          Urgent
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-slate-400 font-medium">Routine</span>
+                      )}
                     </td>
 
                     {/* Assigned Doctor (Prompt 4.9 Requirement) */}

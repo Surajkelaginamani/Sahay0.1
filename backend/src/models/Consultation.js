@@ -1,41 +1,59 @@
 import mongoose from 'mongoose';
 
-// Sub-schema for individual prescription line items
-const prescriptionItemSchema = new mongoose.Schema(
+// ─── Medication sub-schema (ABDM OPConsultRecord standard) ───────────────────
+const medicationSchema = new mongoose.Schema(
   {
+    drugName: {
+      type: String,
+      required: [true, 'Drug name is required'],
+      trim: true,
+    },
+    // Alias / backward compat for medicineName
     medicineName: {
       type: String,
-      required: [true, 'Medicine name is required'],
       trim: true,
     },
     dosage: {
-      type: String, // e.g. "500mg"
+      type: String, // e.g. "500mg" or "1 tablet"
       trim: true,
     },
     frequency: {
-      type: String, // e.g. "Twice daily after meals"
+      type: String, // e.g. "Twice daily after meals", "1-0-1"
       trim: true,
     },
     durationDays: {
       type: Number, // e.g. 5
     },
     instructions: {
-      type: String, // e.g. "Avoid alcohol"
+      type: String, // e.g. "Take after food, avoid alcohol"
       trim: true,
     },
   },
   { _id: false }
 );
 
-// Sub-schema for investigation orders (lab tests, imaging, etc.)
-const investigationOrderSchema = new mongoose.Schema(
+// Populate drugName from medicineName if only medicineName was provided
+medicationSchema.pre('validate', function () {
+  if (!this.drugName && this.medicineName) {
+    this.drugName = this.medicineName;
+  }
+  if (!this.medicineName && this.drugName) {
+    this.medicineName = this.drugName;
+  }
+});
+
+// ─── Investigation Advice sub-schema ──────────────────────────────────────────
+const investigationAdviceSchema = new mongoose.Schema(
   {
     testName: {
       type: String,
       required: true,
       trim: true,
     },
-    // Where this order was routed: internal lab or external referral
+    notes: {
+      type: String,
+      trim: true,
+    },
     routedTo: {
       type: String,
       enum: ['LabHead', 'External', 'Radiology'],
@@ -54,29 +72,90 @@ const investigationOrderSchema = new mongoose.Schema(
   { _id: true }
 );
 
+// ─── Vitals sub-schema (ABDM OPConsultRecord vitals) ──────────────────────────
+const vitalsSchema = new mongoose.Schema(
+  {
+    temp:   { type: String, trim: true }, // e.g. "98.6 °F"
+    bp:     { type: String, trim: true }, // e.g. "120/80 mmHg"
+    pulse:  { type: String, trim: true }, // e.g. "72 bpm"
+    spO2:   { type: String, trim: true }, // e.g. "98 %"
+    weight: { type: String, trim: true }, // e.g. "68 kg"
+    height: { type: String, trim: true }, // e.g. "172 cm"
+  },
+  { _id: false }
+);
+
+// ─── Consultation Schema ──────────────────────────────────────────────────────
 const consultationSchema = new mongoose.Schema(
   {
-    appointment: {
+    // ── Core References (Prompt 5.1) ─────────────────────────────────────────
+    patientId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Patient',
+      required: [true, 'Patient reference is required'],
+    },
+    doctorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: [true, 'Doctor reference is required'],
+    },
+    facilityId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Hospital',
+      required: [true, 'Facility reference is required'],
+    },
+    appointmentId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Appointment',
       required: [true, 'Appointment reference is required'],
     },
 
-    // Clinical notes
+    // Backward-compatible reference aliases
+    appointment: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Appointment',
+    },
+    doctor: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    hospital: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Hospital',
+    },
+
+    // ── Clinical Data (OPConsultRecord standards) ───────────────────────────
+    vitals: {
+      type: vitalsSchema,
+      default: () => ({}),
+    },
+
     chiefComplaints: {
+      type: mongoose.Schema.Types.Mixed, // allows String or [String]
+      default: '',
+    },
+
+    medicalHistory: {
+      type: mongoose.Schema.Types.Mixed, // allows String or [String]
+      default: '',
+    },
+
+    clinicalObservations: {
       type: String,
       trim: true,
     },
-    clinicalObservations: {
-      type: String, // Vitals, physical exam findings
-      trim: true,
-    },
+
     diagnosis: {
       type: String,
       trim: true,
     },
 
-    // ICD-10 code(s) for structured diagnosis
+    clinicalNotes: {
+      type: String,
+      trim: true,
+    },
+
+    // ICD-10 structured diagnosis codes (optional)
     icdCodes: [
       {
         code: { type: String, trim: true },
@@ -84,37 +163,38 @@ const consultationSchema = new mongoose.Schema(
       },
     ],
 
-    // Digital prescription — array of medicine items
-    prescription: [prescriptionItemSchema],
+    // Medications list (Prompt 5.1)
+    medications: [medicationSchema],
 
-    // Investigation orders pushed to Lab/Radiology queues
-    investigationOrders: [investigationOrderSchema],
+    // Backward-compatible alias for prescription
+    prescription: [medicationSchema],
 
-    // Referral details if the doctor is handing off to another facility
+    // Investigation advice (requested lab tests) (Prompt 5.1)
+    investigationAdvice: [investigationAdviceSchema],
+
+    // Backward-compatible alias for investigationOrders
+    investigationOrders: [investigationAdviceSchema],
+
+    // Referral details (optional)
     referral: {
       isReferred: { type: Boolean, default: false },
-      referredTo: { type: String, trim: true }, // facility or specialist name
+      referredTo: { type: String, trim: true },
       referralNote: { type: String, trim: true },
       ashaNotified: { type: Boolean, default: false },
     },
 
-    // Follow-up scheduling
     followUpDate: {
       type: Date,
     },
 
-    // Doctor who authored this consultation
-    doctor: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: true,
-    },
-
-    // Hospital where the consultation took place
-    hospital: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Hospital',
-      required: true,
+    // ── Workflow Status ─────────────────────────────────────────────────────
+    status: {
+      type: String,
+      enum: {
+        values: ['Draft', 'Finalized'],
+        message: '{VALUE} is not a valid consultation status',
+      },
+      default: 'Finalized',
     },
   },
   {
@@ -122,8 +202,35 @@ const consultationSchema = new mongoose.Schema(
   }
 );
 
-// Index for fast patient timeline queries (via appointment lookup)
-consultationSchema.index({ appointment: 1, createdAt: -1 });
+// Pre-save hook to ensure alias synchronisation
+consultationSchema.pre('save', function () {
+  if (this.appointmentId && !this.appointment) this.appointment = this.appointmentId;
+  if (this.appointment && !this.appointmentId) this.appointmentId = this.appointment;
+
+  if (this.doctorId && !this.doctor) this.doctor = this.doctorId;
+  if (this.doctor && !this.doctorId) this.doctorId = this.doctor;
+
+  if (this.facilityId && !this.hospital) this.hospital = this.facilityId;
+  if (this.hospital && !this.facilityId) this.facilityId = this.hospital;
+
+  if (this.medications?.length > 0 && (!this.prescription || this.prescription.length === 0)) {
+    this.prescription = this.medications;
+  } else if (this.prescription?.length > 0 && (!this.medications || this.medications.length === 0)) {
+    this.medications = this.prescription;
+  }
+
+  if (this.investigationAdvice?.length > 0 && (!this.investigationOrders || this.investigationOrders.length === 0)) {
+    this.investigationOrders = this.investigationAdvice;
+  } else if (this.investigationOrders?.length > 0 && (!this.investigationAdvice || this.investigationAdvice.length === 0)) {
+    this.investigationAdvice = this.investigationOrders;
+  }
+});
+
+// Indexes for fast querying
+consultationSchema.index({ appointmentId: 1, createdAt: -1 });
+consultationSchema.index({ patientId: 1, createdAt: -1 });
+consultationSchema.index({ doctorId: 1, createdAt: -1 });
+consultationSchema.index({ facilityId: 1, createdAt: -1 });
 
 const Consultation = mongoose.model('Consultation', consultationSchema);
 
