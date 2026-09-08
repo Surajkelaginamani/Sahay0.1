@@ -46,10 +46,20 @@ export const hospitalAdminAPI = {
   resetPassword: (id, password) => api.put(`/hospital/staff/${id}/password`, { password }),
   deleteStaff: (id) => api.delete(`/hospital/staff/${id}`),
 };
-
-// Staff Auth API (Unified login for Doctor, ASHA, HospitalAdmin, LabHead, FacilityAdmin)
+// Staff Auth API (Unified login for Doctor, ASHA, HospitalAdmin, LabHead, FacilityAdmin, Receptionist, Nurse)
 export const staffAuthAPI = {
   login: (data) => api.post('/auth/staff-login', data),
 };
 
+// Receptionist API (patient & appointment management)
+export const receptionistAPI = {
+  registerPatient:   (data) => api.post('/receptionist/patient', data),
+  searchPatients:    (q)    => api.get('/receptionist/patient/search', { params: { q } }),
+  createAppointment: (data) => api.post('/receptionist/appointment', data),
+  checkIn:           (id)   => api.patch(`/receptionist/appointment/${id}/checkin`),
+  getTodayQueue:     (status) =>
+    api.get('/receptionist/queue/today', status ? { params: { status } } : {}),
+};
+
 export default api;
+

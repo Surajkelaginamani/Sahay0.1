@@ -30,7 +30,9 @@ export const protect = async (req, res, next) => {
         });
       }
 
+      // Attach hospitalId from the JWT payload (it is not stored on the User doc directly)
       req.user = user;
+      req.user.hospitalId = decoded.hospitalId || user.hospitalId || null;
       next();
     } catch (error) {
       console.error('Token verification error:', error.message);
