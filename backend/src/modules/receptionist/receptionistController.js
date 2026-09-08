@@ -338,10 +338,10 @@ export const getTodayQueue = async (req, res) => {
 // ─── addToQueue ───────────────────────────────────────────────────────────────
 // @route   POST /api/receptionist/queue
 // @access  Private (Receptionist)
-// Body:    { patientId, assignedDoctorId, appointmentDate? }
+// Body:    { patientId, assignedDoctorId, appointmentDate?, priority? }
 export const addToQueue = async (req, res) => {
   try {
-    const { patientId, assignedDoctorId, appointmentDate } = req.body;
+    const { patientId, assignedDoctorId, appointmentDate, priority } = req.body;
 
     if (!patientId) {
       return res.status(400).json({ message: 'patientId is required.' });
@@ -350,6 +350,9 @@ export const addToQueue = async (req, res) => {
     if (!assignedDoctorId) {
       return res.status(400).json({ message: 'assignedDoctorId is required — please select a doctor.' });
     }
+
+    // Validate priority if supplied
+    const resolvedPriority = priority === 'Urgent' ? 'Urgent' : 'Routine';
 
     // hospitalId comes from the Receptionist's JWT (set by authMiddleware)
     const facilityId = req.user.hospitalId;
@@ -376,14 +379,26 @@ export const addToQueue = async (req, res) => {
     // Use today's date if no appointmentDate supplied
     const queueDate = appointmentDate ? new Date(appointmentDate) : new Date();
 
-    // Sequential queue number: count all Waiting/CheckedIn entries for this facility today
+    // ── Priority-aware queue numbering ───────────────────────────────────────────
+    // Urgent patients receive queueNumber = 0 (displayed first in UI).
+    // Routine patients receive the next sequential number after all existing
+    // Waiting/CheckedIn entries for that doctor today.
     const { start, end } = getTodayRange();
-    const existingCount = await Appointment.countDocuments({
-      facilityId,
-      appointmentDate: { $gte: start, $lte: end },
-      status: { $in: ['Waiting', 'CheckedIn'] },
-    });
-    const queueNumber = existingCount + 1;
+
+    let queueNumber;
+    if (resolvedPriority === 'Urgent') {
+      // Queue number 0 signals the front of the line for this doctor today
+      queueNumber = 0;
+    } else {
+      // Count all Waiting/CheckedIn entries for this doctor today to get next number
+      const existingCount = await Appointment.countDocuments({
+        facilityId,
+        assignedDoctorId,
+        appointmentDate: { $gte: start, $lte: end },
+        status: { $in: ['Waiting', 'CheckedIn'] },
+      });
+      queueNumber = existingCount + 1;
+    }
 
     const appointment = await Appointment.create({
       patientId,
@@ -392,6 +407,7 @@ export const addToQueue = async (req, res) => {
       assignedDoctorId,
       appointmentDate:  queueDate,
       status:           'Waiting',
+      priority:         resolvedPriority,
       queueNumber,
     });
 
@@ -400,8 +416,103 @@ export const addToQueue = async (req, res) => {
       { path: 'assignedDoctorId', select: 'name email' },
     ]);
 
+    const priorityLabel = resolvedPriority === 'Urgent' ? '⚠️ URGENT — ' : '';
     res.status(201).json({
-      message: `Patient added to Dr. ${doctor.name}'s queue. Queue number: ${queueNumber}.`,
+      message: `${priorityLabel}Patient added to Dr. ${doctor.name}'s queue. Queue number: ${queueNumber}.`,
+      appointment: {
+        ...appointment.toObject(),
+        patientFullName: `${patient.firstName} ${patient.lastName}`,
+        doctorName:      doctor.name,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ─── scheduleAppointment ──────────────────────────────────────────────────────────
+// @route   POST /api/receptionist/appointment/schedule
+// @access  Private (Receptionist)
+// Body:    { patientId, assignedDoctorId, appointmentDate, timeSlot?, visitType?, chiefComplaint?, staffNotes? }
+//
+// Creates a future-dated appointment with status 'Scheduled'. Unlike addToQueue
+// (which is for same-day walk-ins), this is for booking ahead.
+export const scheduleAppointment = async (req, res) => {
+  try {
+    const {
+      patientId,
+      assignedDoctorId,
+      appointmentDate,
+      timeSlot,
+      visitType,
+      chiefComplaint,
+      staffNotes,
+    } = req.body;
+
+    // ── Required field validation ──────────────────────────────────────────────────
+    if (!patientId || !assignedDoctorId || !appointmentDate) {
+      return res.status(400).json({
+        message: 'patientId, assignedDoctorId, and appointmentDate are all required.',
+      });
+    }
+
+    // ── appointmentDate must be in the future ───────────────────────────────────────
+    const parsedDate = new Date(appointmentDate);
+    if (isNaN(parsedDate.getTime())) {
+      return res.status(400).json({ message: 'appointmentDate is not a valid date.' });
+    }
+    // Allow same-day scheduling but reject past dates
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    if (parsedDate < todayStart) {
+      return res.status(400).json({
+        message: 'appointmentDate must be today or a future date.',
+      });
+    }
+
+    const facilityId = req.user.hospitalId;
+
+    // ── Verify patient belongs to this facility ────────────────────────────────────
+    const patient = await Patient.findOne({
+      _id: patientId,
+      registeredAtFacility: facilityId,
+    });
+    if (!patient) {
+      return res.status(404).json({ message: 'Patient not found in your facility.' });
+    }
+
+    // ── Verify doctor belongs to this facility ────────────────────────────────────
+    const doctor = await User.findOne({
+      _id:        assignedDoctorId,
+      role:       'Doctor',
+      hospitalId: facilityId,
+    }).select('name email');
+    if (!doctor) {
+      return res.status(404).json({ message: 'Doctor not found in your facility.' });
+    }
+
+    // ── Create the scheduled appointment ─────────────────────────────────────────────
+    const appointment = await Appointment.create({
+      patientId,
+      facilityId,
+      receptionistId:   req.user._id,
+      assignedDoctorId,
+      appointmentDate:  parsedDate,
+      status:           'Scheduled',
+      priority:         'Routine', // future bookings are Routine by default
+      timeSlot:         timeSlot?.trim()       || undefined,
+      visitType:        visitType?.trim()       || undefined,
+      chiefComplaint:   chiefComplaint?.trim()  || undefined,
+      staffNotes:       staffNotes?.trim()      || undefined,
+    });
+
+    await appointment.populate([
+      { path: 'patientId',        select: 'firstName lastName contactPhone gender' },
+      { path: 'assignedDoctorId', select: 'name email' },
+    ]);
+
+    res.status(201).json({
+      message: `Appointment scheduled for ${patient.firstName} ${patient.lastName} with Dr. ${doctor.name} on ${parsedDate.toDateString()}.`,
       appointment: {
         ...appointment.toObject(),
         patientFullName: `${patient.firstName} ${patient.lastName}`,
@@ -484,3 +595,51 @@ export const getFacilityDoctors = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// ─── getUpcomingAppointments ──────────────────────────────────────────────────
+// @route   GET /api/receptionist/appointments/upcoming
+// @access  Private (Receptionist)
+// Returns all future scheduled appointments strictly after the end of today for this facility.
+export const getUpcomingAppointments = async (req, res) => {
+  try {
+    const facilityId = req.user.hospitalId;
+
+    // Strict future: greater than end of current day (23:59:59.999)
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
+
+    const filter = {
+      facilityId,
+      appointmentDate: { $gt: endOfToday },
+      status: { $ne: 'Cancelled' },
+    };
+
+    // Optional status query parameter filter (e.g. ?status=Scheduled)
+    if (req.query.status) {
+      filter.status = req.query.status;
+    }
+
+    const appointments = await Appointment.find(filter)
+      .populate('patientId', 'firstName lastName contactPhone gender dob abhaId')
+      .populate('assignedDoctorId', 'name email')
+      .populate('receptionistId', 'name')
+      .sort({ appointmentDate: 1 })
+      .lean();
+
+    const enriched = appointments.map((appt) => ({
+      ...appt,
+      patientFullName: appt.patientId
+        ? `${appt.patientId.firstName} ${appt.patientId.lastName}`
+        : 'Unknown',
+      doctorName: appt.assignedDoctorId?.name || null,
+    }));
+
+    res.json({
+      count: enriched.length,
+      appointments: enriched,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+

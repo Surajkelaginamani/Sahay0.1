@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import PatientRegistrationForm from '../../features/receptionist/components/PatientRegistrationForm';
 import PatientSearch           from '../../features/receptionist/components/PatientSearch';
 import TodayQueue              from '../../features/receptionist/components/TodayQueue';
+import DoctorRoster            from '../../features/receptionist/components/DoctorRoster';
+import AppointmentScheduler   from '../../features/receptionist/components/AppointmentScheduler';
+import UpcomingAppointments    from '../../features/receptionist/components/UpcomingAppointments';
 
 // ─── Toast ─────────────────────────────────────────────────────────────────────
 function Toast({ toast }) {
@@ -72,12 +75,38 @@ const TABS = [
       </svg>
     ),
   },
+  {
+    id: 'book',
+    label: 'Book Appointment',
+    shortLabel: 'Book',
+    color: 'sky',
+    icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+          d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
+  },
+  {
+    id: 'upcoming',
+    label: 'Upcoming Appointments',
+    shortLabel: 'Upcoming',
+    color: 'teal',
+    icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+      </svg>
+    ),
+  },
 ];
 
 const TAB_ACTIVE_CLASSES = {
   amber:  'bg-amber-500 text-white shadow-sm shadow-amber-200',
   rose:   'bg-rose-500 text-white shadow-sm shadow-rose-200',
   violet: 'bg-violet-600 text-white shadow-sm shadow-violet-200',
+  sky:    'bg-sky-600   text-white shadow-sm shadow-sky-200',
+  teal:   'bg-teal-600  text-white shadow-sm shadow-teal-200',
 };
 
 // ─── Main Dashboard ────────────────────────────────────────────────────────────
@@ -137,9 +166,10 @@ export default function ReceptionistDashboard() {
     }
   }, [showToast]);
 
-  const handleQueueSuccess = useCallback(({ patient, doctorName, queueNumber }) => {
-    const docText = doctorName ? ` for Dr. ${doctorName}` : '';
-    showToast('success', 'Added to Queue',
+  const handleQueueSuccess = useCallback(({ patient, doctorName, queueNumber, priority }) => {
+    const docText      = doctorName ? ` for Dr. ${doctorName}` : '';
+    const urgentPrefix = priority === 'Urgent' ? '⚠️ Urgent — ' : '';
+    showToast('success', `${urgentPrefix}Added to Queue`,
       `${patient.fullName} is now Queue #${queueNumber}${docText}.`);
     setQueueRefresh((n) => n + 1);
   }, [showToast]);
@@ -147,6 +177,17 @@ export default function ReceptionistDashboard() {
   const handleCheckInSuccess = useCallback(({ patientName, queueNumber }) => {
     showToast('success', 'Patient Checked In',
       `${patientName} is now Queue #${queueNumber}.`);
+  }, [showToast]);
+
+  const handleAppointmentBooked = useCallback(({ appointment, patient }) => {
+    const docName = appointment?.assignedDoctorId?.name
+      || appointment?.doctorName
+      || '';
+    const dateStr = appointment?.appointmentDate
+      ? new Date(appointment.appointmentDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+      : '';
+    showToast('success', '📅 Appointment Booked',
+      `${patient?.fullName || 'Patient'} scheduled${docName ? ` with Dr. ${docName}` : ''}${dateStr ? ` on ${dateStr}` : ''}.`);
   }, [showToast]);
 
   if (!user) return null;
@@ -262,6 +303,8 @@ export default function ReceptionistDashboard() {
                 amber:  'bg-amber-100 text-amber-700',
                 rose:   'bg-rose-100 text-rose-700',
                 violet: 'bg-violet-100 text-violet-700',
+                sky:    'bg-sky-100 text-sky-700',
+                teal:   'bg-teal-100 text-teal-700',
               };
               return (
                 <>
@@ -274,6 +317,8 @@ export default function ReceptionistDashboard() {
                       {activeTab === 'queue'    && "All of today's patient appointments"}
                       {activeTab === 'register' && 'Register a new walk-in patient with login credentials'}
                       {activeTab === 'search'   && 'Find an existing patient and add them to the queue'}
+                      {activeTab === 'book'     && 'Schedule a future appointment with a specific doctor'}
+                      {activeTab === 'upcoming' && 'View and manage all future scheduled appointments beyond today'}
                     </p>
                   </div>
                 </>
@@ -284,12 +329,22 @@ export default function ReceptionistDashboard() {
           {/* Panel body */}
           <div className="p-6">
 
-            {/* Tab 1: Today's Queue */}
+            {/* Tab 1: Today's Queue — two-column layout with DoctorRoster sidebar */}
             {activeTab === 'queue' && (
-              <TodayQueue
-                refreshTrigger={queueRefresh}
-                onCheckInSuccess={handleCheckInSuccess}
-              />
+              <div className="flex flex-col xl:flex-row gap-6">
+                {/* Main queue panel */}
+                <div className="flex-1 min-w-0">
+                  <TodayQueue
+                    refreshTrigger={queueRefresh}
+                    onCheckInSuccess={handleCheckInSuccess}
+                  />
+                </div>
+
+                {/* Doctor Roster sidebar */}
+                <div className="xl:w-64 shrink-0">
+                  <DoctorRoster className="sticky top-6" />
+                </div>
+              </div>
             )}
 
             {/* Tab 2: Register New Patient */}
@@ -299,7 +354,27 @@ export default function ReceptionistDashboard() {
 
             {/* Tab 3: Search & Add Existing */}
             {activeTab === 'search' && (
-              <PatientSearch onQueueSuccess={handleQueueSuccess} />
+              <div className="flex flex-col xl:flex-row gap-6">
+                {/* Patient search */}
+                <div className="flex-1 min-w-0">
+                  <PatientSearch onQueueSuccess={handleQueueSuccess} />
+                </div>
+
+                {/* Doctor Roster sidebar (shows when searching too) */}
+                <div className="xl:w-64 shrink-0">
+                  <DoctorRoster className="sticky top-6" />
+                </div>
+              </div>
+            )}
+
+            {/* Tab 4: Book Appointment */}
+            {activeTab === 'book' && (
+              <AppointmentScheduler onSuccess={handleAppointmentBooked} />
+            )}
+
+            {/* Tab 5: Upcoming Appointments */}
+            {activeTab === 'upcoming' && (
+              <UpcomingAppointments onBookNew={() => setActiveTab('book')} />
             )}
 
           </div>

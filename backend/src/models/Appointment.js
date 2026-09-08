@@ -40,11 +40,32 @@ const appointmentSchema = new mongoose.Schema(
       default: null,
     },
 
-    // ── Workflow Status ───────────────────────────────────────────────────────
+    // ── Priority Triage ───────────────────────────────────────────────────────
+    priority: {
+      type: String,
+      enum: {
+        values: ['Routine', 'Urgent'],
+        message: '{VALUE} is not a valid priority. Use Routine or Urgent.',
+      },
+      default: 'Routine',
+    },
+
+    // ── Workflow Status (Prompt 6.1) ──────────────────────────────────────────
     status: {
       type: String,
       enum: {
-        values: ['Waiting', 'Scheduled', 'CheckedIn', 'Completed', 'Cancelled'],
+        values: [
+          'Scheduled',
+          'At Triage',
+          'Waiting for Doctor',
+          'Lab Pending',
+          'Reports Ready',
+          'Completed',
+          // Backward-compatible statuses
+          'CheckedIn',
+          'Waiting',
+          'Cancelled',
+        ],
         message: '{VALUE} is not a valid appointment status',
       },
       default: 'Scheduled',
@@ -58,6 +79,21 @@ const appointmentSchema = new mongoose.Schema(
     chiefComplaint: {
       type: String,
       trim: true,
+    },
+
+    // ── Vitals Snapshot (captured at Triage) ──────────────────────────────────
+    vitals: {
+      bloodPressure: { type: String, trim: true }, // e.g. "120/80"
+      bloodSugar:    { type: String, trim: true }, // e.g. "110 mg/dL"
+      height:        { type: String, trim: true }, // e.g. "172 cm"
+      weight:        { type: String, trim: true }, // e.g. "68 kg"
+      temperature:   { type: String, trim: true },
+      pulse:         { type: String, trim: true },
+      spO2:          { type: String, trim: true },
+      bmi:           { type: String, trim: true },
+      notes:         { type: String, trim: true },
+      recordedBy:    { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      recordedAt:    { type: Date },
     },
 
     // ── Staff Notes ───────────────────────────────────────────────────────────
@@ -78,6 +114,8 @@ appointmentSchema.index({ facilityId: 1, appointmentDate: 1, status: 1 });
 appointmentSchema.index({ assignedDoctorId: 1, appointmentDate: 1 });
 // Fast receptionist audit trail
 appointmentSchema.index({ receptionistId: 1, createdAt: -1 });
+// Priority triage index: Urgent first, then Routine, within a facility day
+appointmentSchema.index({ facilityId: 1, appointmentDate: 1, priority: 1, queueNumber: 1 });
 
 const Appointment = mongoose.model('Appointment', appointmentSchema);
 
